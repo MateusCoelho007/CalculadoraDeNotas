@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Notas Universitárias</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container-principal {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .calculator-card {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+        }
+
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .minha-logo {
+            max-width: 120px;
+            height: auto;
+            border-radius: 50%;
+            border: 3px solid var(--accent);
+            background-color: #fff;
+            padding: 2px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: var(--text-main);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        select, input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .phase-section {
+            background-color: rgba(15, 23, 42, 0.5);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--accent);
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .phase-section.active {
+            display: block;
+        }
+
+        .phase-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .phase-title span {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: normal;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-row > div {
+            flex: 1;
+        }
+
+        .result-box {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(16,185,129,0.1) 100%);
+            border: 1px solid var(--accent);
+            text-align: center;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .result-grid > div {
+            padding: 10px;
+            background-color: rgba(15, 23, 42, 0.4);
+            border-radius: 8px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .result-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin: 0.2rem 0;
+        }
+
+        .result-details {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .progress-container {
+            width: 100%;
+            background-color: var(--bg-color);
+            border-radius: 8px;
+            height: 10px;
+            margin-top: 1rem;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--accent);
+            width: 0%;
+            transition: width 0.5s ease-out, background-color 0.5s;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.85rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .btn-primary { background-color: var(--accent); color: white; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-success { background-color: var(--success); color: white; margin-top: 0; }
+        .btn-success:hover { background-color: #059669; }
+
+        /* Estilos dos Botões Sociais */
+        .social-section {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .social-section p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn-social {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: white;
+            font-weight: 600;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .btn-social:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+
+        .btn-whatsapp {
+            background-color: #25D366;
+        }
+
+        .btn-instagram {
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+        }
+
+        /* Estilo do Boletim para Exportação */
+        .relatorio-card {
+            background-color: var(--card-bg);
+            padding: 2.5rem 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+            display: none; 
+        }
+
+        .relatorio-header {
+            text-align: center;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            color: var(--text-main);
+        }
+
+        th, td { padding: 14px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--accent); font-weight: 600; font-size: 0.9rem; text-transform: uppercase; }
+        td { font-size: 1rem; }
+
+        .nota-boa { color: var(--success); font-weight: bold; }
+        .nota-media { color: var(--warning); font-weight: bold; }
+        .nota-ruim { color: #ef4444; font-weight: bold; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-principal">
+    
+    <div class="calculator-card">
+        
+        <div class="logo-container">
+            <img src="https://lh3.googleusercontent.com/gps-cs-s/APNQkAHDMuHfi5CGGKW38ql1fU0pLFE3L4hAyx64Ku7dXvQDnYkcn_xIV56i9Ig7ATsyIxyG2VqJ0zRusqH4IALOKARy0Xb5JhZub3fuE2F0KpmHXUMQlGqJTv1RviBjzk-iRS8TwffNKo_iZwY=w408-h408-k-no" alt="Logo" class="minha-logo">
+        </div>
+
+        <h1>📊 Calculadora de Notas</h1>
+
+        <div class="form-group">
+            <label for="nomeMateria">Nome da Matéria</label>
+            <input type="text" id="nomeMateria" placeholder="Ex: Programação Web">
+        </div>
+
+        <div class="form-group">
+            <label for="faseAtual">Selecione a Fase</label>
+            <select id="faseAtual" onchange="atualizarInterface()">
+                <option value="0" disabled selected>Escolha em qual etapa você está...</option>
+                <option value="1">Fase 1</option>
+                <option value="2">Fase 2</option>
+                <option value="3">Fase 3</option>
+                <option value="4">Entrega Final</option>
+            </select>
+        </div>
+
+        <div id="sec-fase1" class="phase-section">
+            <div class="phase-title">Fase 1 <span>Máx: 2.0 pts</span></div>
+            <div class="input-row">
+                <div>
+                    <label>Projeto (0.5)</label>
+                    <input type="number" id="f1_proj" min="0" max="0.5" step="0.1" placeholder="0.0" oninput="calcular()">
+                </div>
+                <div>
+                    <label>Quiz (1.5)</label>
+                    <input type="number" id="f1_quiz" min="0" max="1.5" step="0.1" placeholder="0.0" oninput="calcular()">
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-fase2" class="phase-section">
+            <div class="phase-title">Fase 2 <span>Máx: 3.0 pts</span></div>
+            <div class="input-row">
+                <div>
+                    <label>Projeto (1.5)</label>
+                    <input type="number" id="f2_proj" min="0" max="1.5" step="0.1" placeholder="0.0" oninput="calcular()">
+                </div>
+                <div>
+                    <label>Quiz (1.5)</label>
+                    <input type="number" id="f2_quiz" min="0" max="1.5" step="0.1" placeholder="0.0" oninput="calcular()">
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-fase3" class="phase-section">
+            <div class="phase-title">Fase 3 <span>Máx: 5.0 pts</span></div>
+            <div class="input-row">
+                <div>
+                    <label>Projeto (2.0)</label>
+                    <input type="number" id="f3_proj" min="0" max="2.0" step="0.1" placeholder="0.0" oninput="calcular()">
+                </div>
+                <div>
+                    <label>Quiz (2.5)</label>
+                    <input type="number" id="f3_quiz" min="0" max="2.5" step="0.1" placeholder="0.0" oninput="calcular()">
+                </div>
+            </div>
+            <div class="input-row">
+                <div>
+                    <label>Extensão (0.5)</label>
+                    <input type="number" id="f3_ext" min="0" max="0.5" step="0.1" placeholder="0.0" oninput="calcular()">
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-final" class="phase-section" style="border-left-color: var(--warning);">
+            <div class="phase-title">Entrega Final (Recuperação)</div>
+            <div class="input-row">
+                <div>
+                    <label>Nota da Entrega (Máx 2.0)</label>
+                    <input type="number" id="nota_final" min="0" max="2.0" step="0.1" placeholder="0.0" oninput="calcular()">
+                </div>
+            </div>
+        </div>
+
+        <div class="result-box">
+            <div class="result-grid">
+                <div>
+                    <div class="result-details" id="lblFase">Nota da Fase</div>
+                    <div class="result-value" id="notaFase" style="color: var(--text-main);">0.0</div>
+                </div>
+                <div>
+                    <div class="result-details">Acumulado</div>
+                    <div class="result-value" id="notaTotal">0.0</div>
+                </div>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="barraProgresso"></div>
+            </div>
+            <div class="result-details" style="margin-top: 10px; text-transform: none;" id="textoDetalhe">Aguardando notas...</div>
+            
+            <button class="btn btn-success" style="margin-top: 20px;" onclick="salvarNaTabela()">💾 Salvar Matéria</button>
+        </div>
+
+        <div class="social-section">
+            <p>Acompanhe meu trabalho ou tire suas dúvidas:</p>
+            <div class="social-links">
+                <a href="https://wa.me/5521985211884?text=Ol%C3%A1%20Mateus%2C%20gostaria%20de%20tirar%20uma%20d%C3%BAvida" target="_blank" class="btn-social btn-whatsapp">
+                    <i class="fab fa-whatsapp" style="font-size: 1.2rem;"></i> WhatsApp
+                </a>
+                <a href="https://www.instagram.com/mateuscoelhoatividades" target="_blank" class="btn-social btn-instagram">
+                    <i class="fab fa-instagram" style="font-size: 1.2rem;"></i> Instagram
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="areaExportacao">
+        <div class="relatorio-card" id="cardRelatorio">
+            <div class="relatorio-header">
+                <img src="https://lh3.googleusercontent.com/gps-cs-s/APNQkAHDMuHfi5CGGKW38ql1fU0pLFE3L4hAyx64Ku7dXvQDnYkcn_xIV56i9Ig7ATsyIxyG2VqJ0zRusqH4IALOKARy0Xb5JhZub3fuE2F0KpmHXUMQlGqJTv1RviBjzk-iRS8TwffNKo_iZwY=w408-h408-k-no" alt="Logo" style="max-width: 80px; border-radius: 50%; margin-bottom: 10px; border: 2px solid var(--accent);">
+                <h2 style="margin:0; color: var(--text-main);">📋 BOLETIM DE NOTAS</h2>
+                <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">RESUMO ACADÊMICO ATUALIZADO</p>
+            </div>
+
+            <table id="tabelaNotas">
+                <thead>
+                    <tr>
+                        <th>Matéria</th>
+                        <th>Etapa</th>
+                        <th>Nota Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <button class="btn btn-primary" id="btnBaixar" style="display: none;" onclick="baixarImagem()">📥 Baixar Boletim como Imagem</button>
+
+</div>
+
+<script>
+    function validarLimites(id, maximo) {
+        let elemento = document.getElementById(id);
+        let valor = parseFloat(elemento.value);
+        if (valor > maximo) elemento.value = maximo;
+        if (valor < 0) elemento.value = 0;
+        return parseFloat(elemento.value) || 0;
+    }
+
+    function atualizarInterface() {
+        const fase = parseInt(document.getElementById('faseAtual').value);
+        document.getElementById('sec-fase1').classList.toggle('active', fase >= 1);
+        document.getElementById('sec-fase2').classList.toggle('active', fase >= 2);
+        document.getElementById('sec-fase3').classList.toggle('active', fase >= 3);
+        document.getElementById('sec-final').classList.toggle('active', fase === 4);
+        
+        if(fase > 0 && fase < 4) {
+            document.getElementById('lblFase').innerText = `Nota Fase ${fase}`;
+        } else if (fase === 4) {
+            document.getElementById('lblFase').innerText = `Nota Entrega`;
+        }
+        calcular();
+    }
+
+    function calcular() {
+        const fase = parseInt(document.getElementById('faseAtual').value);
+        if (isNaN(fase)) return;
+
+        let totalAcumulado = 0;
+        let notaDestaFase = 0;
+        let maximoMomento = 0;
+
+        let calcF1 = validarLimites('f1_proj', 0.5) + validarLimites('f1_quiz', 1.5);
+        if (fase >= 1) { 
+            totalAcumulado += calcF1; 
+            maximoMomento += 2.0; 
+            if (fase === 1) notaDestaFase = calcF1;
+        }
+
+        let calcF2 = validarLimites('f2_proj', 1.5) + validarLimites('f2_quiz', 1.5);
+        if (fase >= 2) { 
+            totalAcumulado += calcF2; 
+            maximoMomento += 3.0; 
+            if (fase === 2) notaDestaFase = calcF2;
+        }
+
+        let calcF3 = validarLimites('f3_proj', 2.0) + validarLimites('f3_quiz', 2.5) + validarLimites('f3_ext', 0.5);
+        if (fase >= 3) { 
+            totalAcumulado += calcF3; 
+            maximoMomento += 5.0; 
+            if (fase === 3) notaDestaFase = calcF3;
+        }
+        
+        if (fase === 4) {
+            let notaFechamento = validarLimites('nota_final', 2.0);
+            notaDestaFase = notaFechamento;
+            if (totalAcumulado < 10) {
+                totalAcumulado += notaFechamento;
+                if (totalAcumulado > 10) totalAcumulado = 10;
+            }
+        }
+
+        document.getElementById('notaFase').innerText = notaDestaFase.toFixed(1);
+        document.getElementById('notaTotal').innerText = totalAcumulado.toFixed(1);
+        
+        let porcentagem = (totalAcumulado / 10) * 100;
+        let barra = document.getElementById('barraProgresso');
+        barra.style.width = Math.min(porcentagem, 100) + '%';
+
+        if (totalAcumulado >= 7) {
+            barra.style.backgroundColor = 'var(--success)';
+            document.getElementById('notaTotal').style.color = 'var(--success)';
+        } else if (totalAcumulado >= 5) {
+            barra.style.backgroundColor = 'var(--warning)';
+            document.getElementById('notaTotal').style.color = 'var(--warning)';
+        } else {
+            barra.style.backgroundColor = '#ef4444';
+            document.getElementById('notaTotal').style.color = '#ef4444';
+        }
+
+        document.getElementById('textoDetalhe').innerText = `Aproveitamento de ${(totalAcumulado).toFixed(1)} de 10.0 pontos.`;
+    }
+
+    function salvarNaTabela() {
+        const nomeMateria = document.getElementById('nomeMateria').value.trim();
+        const selectFase = document.getElementById('faseAtual');
+        const faseTexto = selectFase.options[selectFase.selectedIndex].text;
+        const notaTotal = document.getElementById('notaTotal').innerText;
+        const notaNumerica = parseFloat(notaTotal);
+
+        if (!nomeMateria) { alert("Informe o nome da matéria!"); return; }
+        if (selectFase.value === "0") { alert("Selecione a fase!"); return; }
+
+        document.getElementById('cardRelatorio').style.display = 'block';
+        document.getElementById('btnBaixar').style.display = 'block';
+
+        const tbody = document.getElementById('tabelaNotas').getElementsByTagName('tbody')[0];
+        const novaLinha = tbody.insertRow();
+        
+        let classeNota = "nota-ruim";
+        if (notaNumerica >= 7) classeNota = "nota-boa";
+        else if (notaNumerica >= 5) classeNota = "nota-media";
+
+        novaLinha.innerHTML = `
+            <td>${nomeMateria}</td>
+            <td>${faseTexto}</td>
+            <td class="${classeNota}">${notaTotal}</td>
+        `;
+
+        // Reset
+        document.getElementById('nomeMateria').value = '';
+        document.getElementById('faseAtual').value = '0';
+        document.querySelectorAll('input[type="number"]').forEach(input => input.value = '');
+        atualizarInterface();
+        document.getElementById('notaFase').innerText = '0.0';
+        document.getElementById('notaTotal').innerText = '0.0';
+        document.getElementById('notaTotal').style.color = 'var(--text-main)';
+        document.getElementById('barraProgresso').style.width = '0%';
+        document.getElementById('lblFase').innerText = 'Nota da Fase';
+    }
+
+    function baixarImagem() {
+        const areaRelatorio = document.getElementById('cardRelatorio');
+        html2canvas(areaRelatorio, {
+            backgroundColor: '#1e293b',
+            scale: 2
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'boletim_academico.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    }
+</script>
+
+</body>
+</html>
