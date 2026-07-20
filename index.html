@@ -1,580 +1,2832 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora de Notas Universitárias</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --border: #334155;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Coelhos Academy</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,700;0,9..144,900&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Roboto:wght@300;400;700&family=Great+Vibes&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-        body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
+<style>
+/* ============================================================
+   RESET E TOKENS - ALTO CONTRASTE + ANIMAÇÕES
+   ============================================================ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased; font-size: 16px;}
 
-        .container-principal {
-            width: 100%;
-            max-width: 500px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
+:root {
+  /* --- PALETA CLARA (100% Branco) --- */
+  --ink: #000000;
+  --ink2: #333333;
+  --ink3: #666666;
+  --ink4: #999999;
+  
+  --canvas: #FFFFFF;
+  --white: #FFFFFF;
+  --surface: #F4F4F4;
+  
+  --border: #E0E0E0;
+  --border2: #CCCCCC;
+  
+  --blue: #D97757;
+  --blue-dim: #F7EDE8;
+  --blue-dark: #C26344;
+  
+  --green: #4A7A59;
+  --green-dim: #E3EBE6;
+  
+  --red: #A34848;
+  --red-dim: #F0E6E6;
+  
+  --yellow: #D4A547;
+  --yellow-dim: #F5F0E0;
+  
+  --shadow: 0 1px 2px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  
+  --r-sm: 6px;
+  --r: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --nav-h: 64px;
+  --side-w: 260px;
+  
+  --transition: all 0.2s ease;
+}
 
-        .calculator-card {
-            background-color: var(--card-bg);
-            padding: 2rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border);
-        }
+/* --- MODO ESCURO (100% Preto) --- */
+body.dark-mode {
+  --canvas: #000000;
+  --white: #111111;
+  --surface: #222222;
+  --border: #333333;
+  --border2: #444444;
+  --ink: #FFFFFF;
+  --ink2: #CCCCCC;
+  --ink3: #999999;
+  --ink4: #666666;
+  --shadow: 0 1px 2px rgba(255,255,255,0.05);
+  --shadow-lg: 0 8px 24px rgba(255,255,255,0.08);
+  --blue-dim: #3a2a24;
+  --green-dim: #243a2a;
+  --red-dim: #3a2424;
+  --yellow-dim: #3a3424;
+}
 
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 20px;
-        }
+/* --- ANIMAÇÕES FLUIDAS --- */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(25px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
 
-        .minha-logo {
-            max-width: 120px;
-            height: auto;
-            border-radius: 50%;
-            border: 3px solid var(--accent);
-            background-color: #fff;
-            padding: 2px;
-        }
+body {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  background: var(--canvas);
+  color: var(--ink2);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+  transition: background 0.3s ease, color 0.3s ease;
+}
 
-        h1 {
-            text-align: center;
-            font-size: 1.5rem;
-            margin-top: 0;
-            margin-bottom: 1.5rem;
-            color: var(--text-main);
-        }
+input,textarea,select,button{font-family:'Inter',sans-serif;}
+a{color: var(--blue); text-decoration: none;}
 
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
+.plat-input {
+  background: var(--white);
+  border: 1px solid var(--border2);
+  color: var(--ink);
+  border-radius: var(--r);
+  font-size: 15px;
+  outline: none;
+  padding: 12px 16px;
+  width: 100%;
+  transition: var(--transition);
+  box-shadow: var(--shadow);
+}
+.plat-input:focus{ border-color: var(--blue); box-shadow:0 0 0 2px rgba(217,119,87,0.15); }
+button{cursor:pointer;transition:var(--transition);}
+button:hover{opacity:0.85;}
+button:disabled{opacity:0.5;cursor:not-allowed;}
 
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
+.screen{display:none!important;}
+.screen.on{display:flex!important; animation: fadeIn 0.4s ease;}
 
-        select, input[type="number"], input[type="text"] {
-            width: 100%;
-            padding: 0.75rem;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-size: 1rem;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-        }
+/* --- SCROLLBAR --- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink3); }
 
-        select:focus, input:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-        }
+/* --- BOTÃO TEMA --- */
+.theme-toggle {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--ink2);
+  padding: 8px;
+  border-radius: var(--r);
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.theme-toggle:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
 
-        .phase-section {
-            background-color: rgba(15, 23, 42, 0.5);
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            border-left: 4px solid var(--accent);
-            display: none;
-            animation: fadeIn 0.4s ease-out;
-        }
+/* --- LOGIN --- */
+#scr-login {
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  background: var(--canvas);
+  padding: 24px;
+}
+.login-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 40px;
+  justify-content: center;
+}
+.brand-name {
+  font-family: 'Fraunces', serif;
+  font-size: 1.6rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-align: center;
+}
 
-        .phase-section.active {
-            display: block;
-        }
+/* --- TOPBAR --- */
+#scr-app {
+  flex-direction: column;
+  min-height: 100vh;
+}
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-h);
+  background: var(--canvas);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 500;
+  transition: background 0.3s ease;
+}
+.topbar-title {
+  font-family: 'Fraunces', serif;
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: var(--ink);
+  display: none;
+}
+.menu-toggle {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--ink);
+  display: block;
+  padding: 8px;
+}
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  padding: 6px 12px 6px 6px;
+  transition: var(--transition);
+}
+.user-chip:hover {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.av {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--blue);
+  color: var(--white);
+  display: grid;
+  place-items: center;
+  font-size: .8rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.user-chip-name { font-weight: 500; font-size: .85rem; color: var(--ink); }
+.chip-out {
+  background: none;
+  border: none;
+  font-size: .7rem;
+  color: var(--ink3);
+  font-weight: 500;
+  margin-left: 8px;
+}
+.chip-out:hover { color: var(--ink); text-decoration: underline; }
 
-        .phase-title {
-            font-weight: 600;
-            margin-bottom: 1rem;
-            font-size: 1.1rem;
-            display: flex;
-            justify-content: space-between;
-        }
+/* --- SIDEBAR --- */
+.sidebar {
+  position: fixed;
+  top: var(--nav-h);
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  background: var(--canvas);
+  border-right: 1px solid var(--border);
+  padding: 32px 24px;
+  overflow-y: auto;
+  z-index: 450;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease, background 0.3s ease;
+  display: block!important;
+}
+.sidebar.on { transform: translateX(0); }
+.sidebar-overlay {
+  position: fixed;
+  inset: var(--nav-h) 0 0 0;
+  background: rgba(34,33,31,0.2);
+  backdrop-filter: blur(2px);
+  z-index: 440;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.sidebar-overlay.on { opacity: 1; pointer-events: auto; }
+.sidebar-lbl {
+  font-family: 'Inter', sans-serif;
+  font-size: .7rem;
+  color: var(--ink4);
+  font-weight: 500;
+  padding: 0 12px;
+  margin-bottom: 12px;
+  margin-top: 32px;
+  display: block;
+}
+.slink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  font-size: .95rem;
+  font-weight: 400;
+  color: var(--ink2);
+  text-align: left;
+  transition: var(--transition);
+}
+.slink:hover { background: var(--surface); color: var(--ink); }
+.slink.active { background: var(--surface); color: var(--ink); font-weight: 500; }
+.slink .ico { font-size: 16px; flex-shrink: 0; width: 20px; text-align: center; color: var(--blue); }
 
-        .phase-title span {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            font-weight: normal;
-        }
+/* --- MAIN --- */
+.main-content {
+  margin-left: 0;
+  background: var(--canvas);
+  min-height: 100vh;
+  padding-top: var(--nav-h);
+  display: none;
+  transition: background 0.3s ease;
+}
+.main-content.on { display: block; }
+.tab-section {
+  display: none;
+  padding: 48px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.tab-section.on { display: block; animation: fadeIn 0.5s ease forwards; }
+.page-header { margin-bottom: 48px; }
+.page-header h2 {
+  font-family: 'Fraunces', serif;
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.page-header p { font-size: 1.1rem; color: var(--ink2); font-weight: 400; max-width: 600px; }
 
-        .input-row {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 0.5rem;
-        }
+/* --- STATS --- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 48px;
+}
+.stat-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  animation: slideUp 0.5s ease forwards;
+}
+.stat-card:nth-child(1) { animation-delay: 0.1s; }
+.stat-card:nth-child(2) { animation-delay: 0.2s; }
+.stat-label { font-size: .75rem; color: var(--ink3); font-weight: 500; margin-bottom: 8px; }
+.stat-val {
+  font-family: 'Fraunces', serif;
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
 
-        .input-row > div {
-            flex: 1;
-        }
+/* --- TABELAS --- */
+.table-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  width: 100%;
+  overflow-x: auto;
+  box-shadow: var(--shadow);
+  animation: fadeIn 0.6s ease forwards;
+}
+.table-card table { width: 100%; border-collapse: collapse; min-width: 600px; }
+.table-card th {
+  font-size: .8rem;
+  color: var(--ink3);
+  font-weight: 500;
+  padding: 16px 24px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table-card td {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  font-size: .95rem;
+  vertical-align: middle;
+  white-space: nowrap;
+  color: var(--ink2);
+  font-weight: 400;
+}
 
-        .result-box {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            border-radius: 12px;
-            background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(16,185,129,0.1) 100%);
-            border: 1px solid var(--accent);
-            text-align: center;
-        }
+/* --- CATÁLOGO --- */
+.courses-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+.course-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  transition: var(--transition);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  animation: slideUp 0.5s ease forwards;
+}
+.course-card:nth-child(1) { animation-delay: 0.05s; }
+.course-card:nth-child(2) { animation-delay: 0.1s; }
+.course-card:nth-child(3) { animation-delay: 0.15s; }
+.course-card:nth-child(4) { animation-delay: 0.2s; }
+.course-card:nth-child(5) { animation-delay: 0.25s; }
+.course-card:nth-child(6) { animation-delay: 0.3s; }
 
-        .result-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
+.course-card:hover {
+  border-color: var(--border2);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+}
+.card-thumb-wrap {
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-size: 3.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.card-content { padding: 24px; flex: 1; display: flex; flex-direction: column; }
+.card-cat { font-size: .75rem; color: var(--blue); font-weight: 500; margin-bottom: 12px; }
+.card-title {
+  font-family: 'Fraunces', serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-bottom: 12px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.card-desc { font-size: .95rem; color: var(--ink2); line-height: 1.6; flex: 1; margin-bottom: 24px; }
+.btn-card-go {
+  background: var(--ink);
+  color: var(--white);
+  border: 1px solid var(--ink);
+  border-radius: var(--r-sm);
+  padding: 12px;
+  font-size: .95rem;
+  font-weight: 500;
+  width: 100%;
+  margin-top: auto;
+}
 
-        .result-grid > div {
-            padding: 10px;
-            background-color: rgba(15, 23, 42, 0.4);
-            border-radius: 8px;
-            border: 1px solid rgba(59, 130, 246, 0.3);
-        }
+/* --- BARRA DE PROGRESSO --- */
+.progress-wrap {
+  margin-top: 12px;
+  margin-bottom: 16px;
+}
+.progress-bar-bg {
+  background: var(--surface);
+  border-radius: 20px;
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--blue);
+  border-radius: 20px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 0%;
+}
+.progress-text {
+  font-size: 0.75rem;
+  color: var(--ink3);
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+}
 
-        .result-value {
-            font-size: 2.2rem;
-            font-weight: 700;
-            color: var(--accent);
-            margin: 0.2rem 0;
-        }
+/* --- PLAYER --- */
+#scr-player {
+  flex-direction: column;
+  background: var(--canvas);
+  min-height: 100vh;
+  padding-bottom: 48px;
+}
+.player-bar {
+  background: var(--canvas);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid var(--border);
+}
+.back-btn-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--white);
+  border: 1px solid var(--border2);
+  padding: 8px 16px;
+  border-radius: var(--r-sm);
+  font-size: .9rem;
+  font-weight: 500;
+  color: var(--ink);
+  transition: var(--transition);
+  box-shadow: var(--shadow);
+}
+.back-btn-player:hover { border-color: var(--ink); }
+.player-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  gap: 24px;
+  padding: 24px;
+  animation: fadeIn 0.6s ease;
+}
+.video-col { display: flex; flex-direction: column; flex-shrink: 0; }
 
-        .result-details {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+/* Contêiner Universal do Vídeo */
+.yt-container {
+  background: #000;
+  aspect-ratio: 16/9;
+  width: 100%;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  position: relative;
+}
 
-        .progress-container {
-            width: 100%;
-            background-color: var(--bg-color);
-            border-radius: 8px;
-            height: 10px;
-            margin-top: 1rem;
-            overflow: hidden;
-        }
+.lesson-info { padding: 32px 0; animation: slideUp 0.6s ease; }
+.lesson-info h2 {
+  font-family: 'Fraunces', serif;
+  font-size: 2rem;
+  font-weight: 400;
+  margin-bottom: 12px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.playlist-col {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  animation: slideUp 0.7s ease;
+}
+.pl-header {
+  padding: 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: .9rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+.pl-item {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  text-align: left;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  transition: var(--transition);
+  cursor: pointer;
+}
+.pl-item:hover { background: var(--surface); }
+.pl-item.now { background: var(--surface); }
+.pl-item-title { font-weight: 400; font-size: .95rem; color: var(--ink2); flex: 1; line-height: 1.5; }
+.pl-item.now .pl-item-title { font-weight: 500; color: var(--ink); }
+.pl-item-check {
+  font-size: 1rem;
+  color: var(--green);
+  opacity: 0;
+  transition: var(--transition);
+}
+.pl-item-check.done { opacity: 1; }
 
-        .progress-bar {
-            height: 100%;
-            background-color: var(--accent);
-            width: 0%;
-            transition: width 0.5s ease-out, background-color 0.5s;
-        }
+/* --- CAIXA DE AVALIAÇÃO E ESTRELAS --- */
+.review-box {
+  margin-top: 32px;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.stars-container {
+  display: inline-flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 2.2rem;
+  color: #d1d5db; /* Cinza fixo para estrela vazia */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  line-height: 1;
+}
+.star-btn:hover,
+.star-btn.active {
+  color: #fbbf24; /* Amarelo ouro fixo para estrela preenchida */
+  transform: scale(1.15);
+}
+.review-comment {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  background: var(--white);
+  color: var(--ink);
+  font-size: 0.95rem;
+  resize: vertical;
+  min-height: 60px;
+  margin-top: 12px;
+}
+.btn-review {
+  background: var(--blue);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--r);
+  font-weight: 500;
+  font-size: 0.95rem;
+  margin-top: 12px;
+}
+.btn-review:hover { background: var(--blue-dark); }
 
-        .btn {
-            width: 100%;
-            padding: 0.85rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 1rem;
-        }
+/* --- DEPOIMENTOS --- */
+.testimonials-section {
+  margin-top: 48px;
+  padding-top: 48px;
+  border-top: 1px solid var(--border);
+}
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+.testimonial-item {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  animation: scaleIn 0.5s ease forwards;
+}
+.testimonial-item:nth-child(1) { animation-delay: 0.1s; }
+.testimonial-item:nth-child(2) { animation-delay: 0.2s; }
+.testimonial-item:nth-child(3) { animation-delay: 0.3s; }
 
-        .btn-primary { background-color: var(--accent); color: white; }
-        .btn-primary:hover { background-color: var(--accent-hover); }
-        .btn-success { background-color: var(--success); color: white; margin-top: 0; }
-        .btn-success:hover { background-color: #059669; }
+.testimonial-stars {
+  color: var(--yellow);
+  font-size: 1rem;
+  letter-spacing: 2px;
+}
+.testimonial-text {
+  margin: 8px 0;
+  font-size: 0.95rem;
+  color: var(--ink2);
+  line-height: 1.6;
+}
+.testimonial-author {
+  font-size: 0.85rem;
+  color: var(--ink3);
+  font-weight: 500;
+}
 
-        /* Estilos dos Botões Sociais */
-        .social-section {
-            margin-top: 2rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid var(--border);
-            text-align: center;
-        }
+/* --- BANNER DE NOVIDADES --- */
+.news-banner {
+  background: var(--blue-dim);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 24px 32px;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  animation: fadeIn 0.6s ease;
+}
+.news-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.news-banner-icon {
+  font-size: 2rem;
+  color: var(--blue);
+}
+.news-banner h3 {
+  font-family: 'Fraunces', serif;
+  font-size: 1.2rem;
+  color: var(--ink);
+  font-weight: 400;
+}
+.news-banner p {
+  font-size: 0.95rem;
+  color: var(--ink2);
+  margin: 0;
+}
+.news-banner .badge {
+  background: var(--blue);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 
-        .social-section p {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-        }
+/* --- BUSCA --- */
+.search-box {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  animation: fadeIn 0.5s ease;
+}
+.search-box input {
+  flex: 1;
+  min-width: 200px;
+}
 
-        .social-links {
-            display: flex;
-            gap: 15px;
-        }
+/* --- MODAL PIX --- */
+#modal-pix {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(34,33,31,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+#modal-pix-content {
+  background: var(--white);
+  padding: 48px;
+  border-radius: var(--r-xl);
+  width: 100%;
+  max-width: 460px;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+#modal-pix-content .close-modal {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: var(--ink4);
+  transition: var(--transition);
+  font-weight: 300;
+}
+#modal-pix-content .close-modal:hover { color: var(--ink); }
+.coupon-field {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+}
+.coupon-field input { flex: 1; }
+.btn-apply-coupon {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 12px 24px;
+  border-radius: var(--r);
+  font-weight: 500;
+  color: var(--ink2);
+  white-space: nowrap;
+}
+.btn-apply-coupon:hover { border-color: var(--ink); color: var(--ink); }
+.coupon-result {
+  font-size: 0.9rem;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  display: none;
+}
+.coupon-result.ok { display: block; background: var(--green-dim); color: var(--green); }
+.coupon-result.err { display: block; background: var(--red-dim); color: var(--red); }
 
-        .btn-social {
-            flex: 1;
-            padding: 12px;
-            border-radius: 8px;
-            text-decoration: none;
-            color: white;
-            font-weight: 600;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            transition: transform 0.2s ease, opacity 0.2s ease;
-        }
+/* --- TOASTS --- */
+.toast-container {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  left: auto;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+.toast-item {
+  background: var(--ink);
+  color: var(--white);
+  border-radius: var(--r);
+  padding: 16px 24px;
+  font-size: .95rem;
+  opacity: 0;
+  transform: translateY(15px);
+  transition: var(--transition);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 280px;
+  font-weight: 400;
+}
+.toast-item.in { opacity: 1; transform: translateY(0); }
+.toast-item.ok span { color: var(--green-dim); }
+.toast-item.err span { color: var(--blue); }
 
-        .btn-social:hover {
-            transform: translateY(-2px);
-            opacity: 0.9;
-        }
+/* --- PERFIL --- */
+.profile-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 48px;
+  max-width: 600px;
+  box-shadow: var(--shadow);
+  animation: slideUp 0.5s ease;
+}
+.profile-avatar-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 2.5rem;
+  font-weight: 500;
+  margin-bottom: 24px;
+}
+.profile-form .form-group { margin-bottom: 16px; }
+.profile-form .form-group label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--ink3);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
 
-        .btn-whatsapp {
-            background-color: #25D366;
-        }
+/* ══════════════════════════════════════════
+   ESTILOS DO CERTIFICADO PERFEITO (INTACTOS)
+══════════════════════════════════════════ */
+.certificado-borda-externa { border: 3px solid #1a365d; padding: 8px; height: 100%; box-sizing: border-box; }
+.certificado-borda-interna { border: 1px solid #1a365d; padding: 35px 60px; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+.logo-container { width: 140px; height: 140px; margin-bottom: 5px; }
+.logo-container img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
+.cert-h1-title { font-family: 'Playfair Display', serif; font-size: 2.6em; color: #1a365d; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 2px; text-align: center; font-weight: bold; }
+.texto-introdutorio { font-size: 1.25em; color: #555; margin-bottom: 15px; text-align: center; font-family: 'Roboto', sans-serif;}
+.nome-aluno { font-family: 'Playfair Display', serif; font-size: 3.4em; font-weight: 700; color: #000; text-align: center; border-bottom: 2px solid #ccc; padding-bottom: 5px; margin-bottom: 25px; width: 85%; }
+.texto-descricao { font-size: 1.35em; line-height: 1.6; text-align: center; color: #333; max-width: 900px; font-family: 'Roboto', sans-serif;}
+.carga-horaria { font-weight: 700; }
+.assinaturas { display: flex; justify-content: space-evenly; align-items: flex-end; width: 100%; margin-top: 30px; font-family: 'Roboto', sans-serif;}
+.bloco-assinatura { display: flex; flex-direction: column; align-items: center; width: 320px; text-align: center; }
+.iniciais-assinatura { font-family: 'Great Vibes', cursive; font-size: 3.6em; color: #1a365d; height: 50px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: -8px; line-height: 0.7; font-weight: 400; }
+.linha-assinatura-hr { border: none; width: 100%; margin: 0 0 8px 0; }
+.bloco-data .linha-assinatura-hr { border-top: 1px solid transparent; }
+.texto-assinatura { font-size: 1.1em; font-weight: 700; color: #333; width: 100%; }
+.texto-assinatura span { font-weight: 400; font-size: 0.9em; color: #666; display: block; margin-top: 4px; }
 
-        .btn-instagram {
-            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-        }
+/* --- GERADOR DE CURRÍCULO --- */
+#resume-builder-wrapper {
+  --cv-primary: #22211F;
+  --cv-secondary: #D97757;
+  --cv-light: #F5F1EA;
+  --cv-gray: #8C867C;
+  --cv-light-gray: #E8E3DA;
+  --cv-radius: 12px;
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+}
+#resume-builder-wrapper .app-wrapper { display: flex; flex-direction: column; gap: 24px; }
+#resume-builder-wrapper .form-container,
+#resume-builder-wrapper .preview-container {
+  flex: 1;
+  background: var(--white);
+  border-radius: var(--cv-radius);
+  padding: 32px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  animation: slideUp 0.6s ease;
+}
+#resume-builder-wrapper .preview-container {
+  position: sticky;
+  top: 96px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  background: var(--surface);
+}
+#resume-builder-wrapper .section-title {
+  font-family: 'Fraunces', serif;
+  font-size: 1.6rem;
+  font-weight: 400;
+  color: var(--cv-primary);
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--cv-light-gray);
+}
+#resume-builder-wrapper .form-group { margin-bottom: 16px; }
+#resume-builder-wrapper .form-group label { display: none; }
+#resume-builder-wrapper input,
+#resume-builder-wrapper textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--cv-light-gray);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: var(--transition);
+  background: var(--white);
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+#resume-builder-wrapper input:focus,
+#resume-builder-wrapper textarea:focus {
+  border-color: var(--cv-primary);
+  box-shadow: 0 0 0 1px var(--cv-primary);
+}
+#resume-builder-wrapper .form-row { display: flex; flex-direction: column; gap: 16px; }
+#resume-builder-wrapper .form-row .form-group { flex: 1; margin-bottom: 0; }
+#resume-builder-wrapper .add-btn {
+  background: var(--white);
+  color: var(--cv-primary);
+  border: 1px solid var(--cv-light-gray);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+#resume-builder-wrapper .add-btn:hover { border-color: var(--cv-primary); }
+#resume-builder-wrapper .skills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+#resume-builder-wrapper .skill-tag {
+  background: var(--white);
+  color: var(--cv-gray);
+  border: 1px solid var(--cv-light-gray);
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-weight: 400;
+  transition: var(--transition);
+}
+#resume-builder-wrapper .skill-tag.selected {
+  background: var(--cv-primary);
+  color: white;
+  border-color: var(--cv-primary);
+}
+#resume-builder-wrapper .section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: var(--cv-light);
+  border: 1px solid var(--cv-light-gray);
+  border-radius: 8px;
+}
+#resume-builder-wrapper .toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+#resume-builder-wrapper .toggle-switch input { opacity: 0; width: 0; height: 0; }
+#resume-builder-wrapper .toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--cv-light-gray);
+  transition: .3s;
+  border-radius: 34px;
+}
+#resume-builder-wrapper .toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+#resume-builder-wrapper .toggle-switch input:checked + .toggle-slider {
+  background-color: var(--cv-secondary);
+}
+#resume-builder-wrapper .toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+#resume-builder-wrapper .optional-section.disabled { opacity: 0.3; pointer-events: none; }
+#resume-builder-wrapper .optional-section.disabled .section-toggle { pointer-events: auto; }
+#resume-builder-wrapper .template-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+}
+#resume-builder-wrapper .template-option {
+  flex: 1;
+  min-width: 100px;
+  border: 1px solid var(--cv-light-gray);
+  border-radius: 8px;
+  cursor: pointer;
+  background: white;
+  overflow: hidden;
+  transition: var(--transition);
+}
+#resume-builder-wrapper .template-option.selected {
+  border-color: var(--cv-secondary);
+  box-shadow: 0 0 0 1px var(--cv-secondary);
+}
+#resume-builder-wrapper .template-preview {
+  height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 12px;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+#resume-builder-wrapper .template-1 .template-preview { background: var(--cv-primary); }
+#resume-builder-wrapper .template-2 .template-preview { background: #59554F; }
+#resume-builder-wrapper .template-3 .template-preview { background: #8C867C; }
+#resume-builder-wrapper .preview-resume {
+  background: white;
+  padding: 48px;
+  border: 1px solid var(--cv-light-gray);
+  border-radius: 4px;
+  min-height: 600px;
+  font-size: 14px;
+  text-align: justify;
+  line-height: 1.6;
+  box-shadow: var(--shadow);
+}
+#resume-builder-wrapper .template-1-preview { font-family: 'Inter', sans-serif; color: #59554F; }
+#resume-builder-wrapper .template-1-preview .preview-header {
+  border-bottom: 1px solid var(--cv-primary);
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+}
+#resume-builder-wrapper .template-1-preview .preview-name {
+  font-size: 2rem;
+  font-weight: 400;
+  color: #22211F;
+  letter-spacing: -0.02em;
+}
+#resume-builder-wrapper .template-2-preview { font-family: 'Fraunces', serif; color: #22211F; }
+#resume-builder-wrapper .template-2-preview .preview-header {
+  text-align: center;
+  border-bottom: 1px solid var(--cv-light-gray);
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+}
+#resume-builder-wrapper .template-3-preview { font-family: 'Inter', sans-serif; background: #ffffff; color: #59554F; }
+#resume-builder-wrapper .template-3-preview .preview-header {
+  background: var(--cv-primary);
+  color: white;
+  padding: 32px;
+  margin: -48px -48px 24px -48px;
+}
+#resume-builder-wrapper .preview-section-title {
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin-bottom: 16px;
+  color: var(--cv-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+#resume-builder-wrapper .generate-btn {
+  display: flex;
+  width: 100%;
+  background: var(--cv-secondary);
+  color: white;
+  border: none;
+  padding: 16px;
+  font-size: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-top: 24px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: var(--transition);
+}
+#resume-builder-wrapper .generate-btn:hover { background: var(--cv-primary); }
+#resume-builder-wrapper .objective-option {
+  background: var(--white);
+  border: 1px solid var(--cv-light-gray);
+  padding: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  color: var(--cv-gray);
+}
+#resume-builder-wrapper .objective-option.selected {
+  background: var(--cv-light);
+  border-color: var(--cv-secondary);
+  color: var(--cv-secondary);
+}
+#resume-builder-wrapper .project-item,
+#resume-builder-wrapper .education-item,
+#resume-builder-wrapper .experience-item {
+  background: var(--cv-light);
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  position: relative;
+}
 
-        /* Estilo do Boletim para Exportação */
-        .relatorio-card {
-            background-color: var(--card-bg);
-            padding: 2.5rem 2rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border);
-            display: none; 
-        }
-
-        .relatorio-header {
-            text-align: center;
-            border-bottom: 2px solid var(--accent);
-            padding-bottom: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 1.5rem;
-            color: var(--text-main);
-        }
-
-        th, td { padding: 14px; text-align: left; border-bottom: 1px solid var(--border); }
-        th { color: var(--accent); font-weight: 600; font-size: 0.9rem; text-transform: uppercase; }
-        td { font-size: 1rem; }
-
-        .nota-boa { color: var(--success); font-weight: bold; }
-        .nota-media { color: var(--warning); font-weight: bold; }
-        .nota-ruim { color: #ef4444; font-weight: bold; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
+/* --- RESPONSIVO --- */
+@media (min-width: 768px) {
+  html { font-size: 16px; }
+  .login-card { padding: 64px; }
+  
+  .topbar {
+    padding: 0 32px;
+    background: rgba(253,249,243,0.9);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-title { display: block; margin-right: auto; margin-left: calc(var(--side-w) + 24px); }
+  .menu-toggle { display: none; }
+  
+  .sidebar {
+    transform: translateX(0);
+    width: var(--side-w);
+    padding: 32px;
+    border-right: 1px solid var(--border);
+  }
+  .sidebar-overlay { display: none; }
+  
+  .main-content { margin-left: var(--side-w); background: var(--canvas); }
+  .tab-section { padding: 56px 48px; max-width: 1100px; }
+  .page-header h2 { font-size: 2.8rem; }
+  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+  .table-card table { min-width: 100%; }
+  .courses-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
+  
+  #scr-player { padding: 48px; height: 100vh; overflow: hidden; background: var(--canvas); }
+  .player-bar { background: transparent; padding: 0 0 24px 0; border: none; }
+  .player-layout {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    overflow: hidden;
+    height: calc(100vh - 120px);
+    max-width: 1400px;
+    margin: 0 auto;
+    gap: 24px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+  .yt-container { margin: 0; width: 100%; border-radius: var(--r-lg); border: 1px solid var(--border); }
+  .video-col { overflow-y: auto; padding-bottom: 24px; }
+  .playlist-col {
+    overflow-y: auto;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+  }
+  
+  #resume-builder-wrapper .app-wrapper { flex-direction: row; gap: 3rem; }
+  #resume-builder-wrapper .form-row { flex-direction: row; }
+  
+  .testimonials-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+}
+</style>
 </head>
+
 <body>
 
-<div class="container-principal">
+<!-- OVERLAY SIDEBAR -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileMenu()"></div>
+
+<!-- ====== TELA DE LOGIN ====== -->
+<div class="screen on" id="scr-login">
+  <div class="login-card">
+    <div class="login-brand">
+      <img src="https://i.postimg.cc/bv3WgXkG/LOGO.jpg" alt="Coelhos Academy Logo" style="height:56px;width:auto;border-radius:8px;object-fit:contain;mix-blend-mode:multiply;">
+      <span class="brand-name">COELHOS ACADEMY</span>
+    </div>
     
-    <div class="calculator-card">
-        
-        <div class="logo-container">
-            <img src="https://lh3.googleusercontent.com/gps-cs-s/APNQkAHDMuHfi5CGGKW38ql1fU0pLFE3L4hAyx64Ku7dXvQDnYkcn_xIV56i9Ig7ATsyIxyG2VqJ0zRusqH4IALOKARy0Xb5JhZub3fuE2F0KpmHXUMQlGqJTv1RviBjzk-iRS8TwffNKo_iZwY=w408-h408-k-no" alt="Logo" class="minha-logo">
-        </div>
+    <div id="form-login">
+      <h1 style="text-align:center;font-family:'Fraunces',serif;font-size:1.8rem;font-weight:400;margin-bottom:8px;letter-spacing:-0.02em;color:var(--ink);">Acesso à Plataforma</h1>
+      <p style="text-align:center;font-size:1rem;color:var(--ink3);margin-bottom:32px;font-weight:400;">Insira suas credenciais para continuar.</p>
+      
+      <div style="margin-bottom:16px;"><input type="email" id="login-email" class="plat-input" placeholder="E-mail"></div>
+      <div style="margin-bottom:24px;"><input type="password" id="login-pass" class="plat-input" placeholder="Senha"></div>
 
-        <h1>📊 Calculadora de Notas</h1>
-
-        <div class="form-group">
-            <label for="nomeMateria">Nome da Matéria</label>
-            <input type="text" id="nomeMateria" placeholder="Ex: Programação Web">
-        </div>
-
-        <div class="form-group">
-            <label for="faseAtual">Selecione a Fase</label>
-            <select id="faseAtual" onchange="atualizarInterface()">
-                <option value="0" disabled selected>Escolha em qual etapa você está...</option>
-                <option value="1">Fase 1</option>
-                <option value="2">Fase 2</option>
-                <option value="3">Fase 3</option>
-                <option value="4">Entrega Final</option>
-            </select>
-        </div>
-
-        <div id="sec-fase1" class="phase-section">
-            <div class="phase-title">Fase 1 <span>Máx: 2.0 pts</span></div>
-            <div class="input-row">
-                <div>
-                    <label>Projeto (0.5)</label>
-                    <input type="number" id="f1_proj" min="0" max="0.5" step="0.1" placeholder="0.0" oninput="calcular()">
-                </div>
-                <div>
-                    <label>Quiz (1.5)</label>
-                    <input type="number" id="f1_quiz" min="0" max="1.5" step="0.1" placeholder="0.0" oninput="calcular()">
-                </div>
-            </div>
-        </div>
-
-        <div id="sec-fase2" class="phase-section">
-            <div class="phase-title">Fase 2 <span>Máx: 3.0 pts</span></div>
-            <div class="input-row">
-                <div>
-                    <label>Projeto (1.5)</label>
-                    <input type="number" id="f2_proj" min="0" max="1.5" step="0.1" placeholder="0.0" oninput="calcular()">
-                </div>
-                <div>
-                    <label>Quiz (1.5)</label>
-                    <input type="number" id="f2_quiz" min="0" max="1.5" step="0.1" placeholder="0.0" oninput="calcular()">
-                </div>
-            </div>
-        </div>
-
-        <div id="sec-fase3" class="phase-section">
-            <div class="phase-title">Fase 3 <span>Máx: 5.0 pts</span></div>
-            <div class="input-row">
-                <div>
-                    <label>Projeto (2.0)</label>
-                    <input type="number" id="f3_proj" min="0" max="2.0" step="0.1" placeholder="0.0" oninput="calcular()">
-                </div>
-                <div>
-                    <label>Quiz (2.5)</label>
-                    <input type="number" id="f3_quiz" min="0" max="2.5" step="0.1" placeholder="0.0" oninput="calcular()">
-                </div>
-            </div>
-            <div class="input-row">
-                <div>
-                    <label>Extensão (0.5)</label>
-                    <input type="number" id="f3_ext" min="0" max="0.5" step="0.1" placeholder="0.0" oninput="calcular()">
-                </div>
-            </div>
-        </div>
-
-        <div id="sec-final" class="phase-section" style="border-left-color: var(--warning);">
-            <div class="phase-title">Entrega Final (Recuperação)</div>
-            <div class="input-row">
-                <div>
-                    <label>Nota da Entrega (Máx 2.0)</label>
-                    <input type="number" id="nota_final" min="0" max="2.0" step="0.1" placeholder="0.0" oninput="calcular()">
-                </div>
-            </div>
-        </div>
-
-        <div class="result-box">
-            <div class="result-grid">
-                <div>
-                    <div class="result-details" id="lblFase">Nota da Fase</div>
-                    <div class="result-value" id="notaFase" style="color: var(--text-main);">0.0</div>
-                </div>
-                <div>
-                    <div class="result-details">Acumulado</div>
-                    <div class="result-value" id="notaTotal">0.0</div>
-                </div>
-            </div>
-            
-            <div class="progress-container">
-                <div class="progress-bar" id="barraProgresso"></div>
-            </div>
-            <div class="result-details" style="margin-top: 10px; text-transform: none;" id="textoDetalhe">Aguardando notas...</div>
-            
-            <button class="btn btn-success" style="margin-top: 20px;" onclick="salvarNaTabela()">💾 Salvar Matéria</button>
-        </div>
-
-        <div class="social-section">
-            <p>Acompanhe meu trabalho ou tire suas dúvidas:</p>
-            <div class="social-links">
-                <a href="https://wa.me/5521985211884?text=Ol%C3%A1%20Mateus%2C%20gostaria%20de%20tirar%20uma%20d%C3%BAvida" target="_blank" class="btn-social btn-whatsapp">
-                    <i class="fab fa-whatsapp" style="font-size: 1.2rem;"></i> WhatsApp
-                </a>
-                <a href="https://www.instagram.com/mateuscoelhoatividades" target="_blank" class="btn-social btn-instagram">
-                    <i class="fab fa-instagram" style="font-size: 1.2rem;"></i> Instagram
-                </a>
-            </div>
-        </div>
-
+      <button onclick="loginComPlataforma()" style="width:100%;padding:14px;background:var(--ink);color:var(--white);border:none;border-radius:8px;font-weight:500;cursor:pointer;font-size:15px;letter-spacing:0.3px;">Entrar na Conta</button>
+      
+      <div style="text-align:center;margin-top:24px;font-size:14px;color:var(--ink3);font-weight:400;">Ainda não é aluno? <button onclick="toggleAuthMode()" style="background:none;border:none;color:var(--ink);font-weight:500;text-decoration:underline;cursor:pointer;padding:2px 4px;">Registre-se</button></div>
     </div>
 
-    <div id="areaExportacao">
-        <div class="relatorio-card" id="cardRelatorio">
-            <div class="relatorio-header">
-                <img src="https://lh3.googleusercontent.com/gps-cs-s/APNQkAHDMuHfi5CGGKW38ql1fU0pLFE3L4hAyx64Ku7dXvQDnYkcn_xIV56i9Ig7ATsyIxyG2VqJ0zRusqH4IALOKARy0Xb5JhZub3fuE2F0KpmHXUMQlGqJTv1RviBjzk-iRS8TwffNKo_iZwY=w408-h408-k-no" alt="Logo" style="max-width: 80px; border-radius: 50%; margin-bottom: 10px; border: 2px solid var(--accent);">
-                <h2 style="margin:0; color: var(--text-main);">📋 BOLETIM DE NOTAS</h2>
-                <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">RESUMO ACADÊMICO ATUALIZADO</p>
-            </div>
+    <div id="form-register" style="display:none;">
+      <h1 style="text-align:center;font-family:'Fraunces',serif;font-size:1.8rem;font-weight:400;margin-bottom:8px;letter-spacing:-0.02em;color:var(--ink);">Criar Conta</h1>
+      <p style="text-align:center;font-size:1rem;color:var(--ink3);margin-bottom:32px;font-weight:400;">Preencha os dados abaixo.</p>
+      
+      <div style="margin-bottom:16px;"><input type="text" id="reg-name" class="plat-input" placeholder="Nome Completo"></div>
+      <div style="margin-bottom:16px;"><input type="email" id="reg-email" class="plat-input" placeholder="E-mail"></div>
+      <div style="margin-bottom:16px;"><input type="tel" id="reg-phone" class="plat-input" placeholder="WhatsApp / Telefone" maxlength="15" onkeyup="mascaraTelefone(this)"></div>
+      <div style="margin-bottom:16px;"><input type="password" id="reg-pass" class="plat-input" placeholder="Criar Senha"></div>
+      <div style="margin-bottom:24px;"><input type="password" id="reg-pass-confirm" class="plat-input" placeholder="Repita a Senha"></div>
 
-            <table id="tabelaNotas">
-                <thead>
-                    <tr>
-                        <th>Matéria</th>
-                        <th>Etapa</th>
-                        <th>Nota Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
-        </div>
+      <button id="btn-cadastrar" onclick="cadastrarNaPlataforma()" style="width:100%;padding:14px;background:var(--ink);color:var(--white);border:none;border-radius:8px;font-weight:500;cursor:pointer;font-size:15px;letter-spacing:0.3px;">Finalizar Cadastro</button>
+      <div style="text-align:center;margin-top:24px;font-size:14px;color:var(--ink3);font-weight:400;">Já possui conta? <button onclick="toggleAuthMode()" style="background:none;border:none;color:var(--ink);font-weight:500;text-decoration:underline;cursor:pointer;padding:2px 4px;">Fazer login</button></div>
     </div>
-
-    <button class="btn btn-primary" id="btnBaixar" style="display: none;" onclick="baixarImagem()">📥 Baixar Boletim como Imagem</button>
-
+  </div>
 </div>
 
+<!-- ====== APP PRINCIPAL ====== -->
+<div class="screen" id="scr-app">
+  
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <button class="menu-toggle" onclick="toggleMobileMenu()">☰</button>
+    <div class="topbar-title" id="topbar-title">Catálogo</div>
+    
+    <!-- Container ajustado para o Relógio e Menu do Usuário -->
+    <div style="display:flex;align-items:center;gap:16px;">
+      
+      <!-- RELÓGIO NO TOPO -->
+      <div id="realtime-clock" style="font-family:'Inter',sans-serif;font-weight:600;font-size:0.95rem;color:var(--ink);letter-spacing:1px;">--:--:--</div>
+      
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="theme-toggle" onclick="toggleTheme()" id="theme-toggle" title="Alternar tema">
+          <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+        <button class="btn-admin-pill" id="btn-admin-pill" style="display:none;padding:8px 16px;font-size:0.8rem;border:1px solid var(--border2);background:var(--white);color:var(--ink);font-weight:500;border-radius:8px;transition:var(--transition);" onclick="goTab('admin-students')">Painel Admin</button>
+        <div class="user-chip">
+          <div class="av" id="user-av">?</div>
+          <span class="user-chip-name" id="user-name">Usuário</span>
+          <button class="chip-out" onclick="logout()">Sair</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <span class="sidebar-lbl">Aprendizado</span>
+      <button class="slink active" onclick="goTab('catalog')" data-tab="catalog"><span class="ico">📚</span> Catálogo</button>
+      <button class="slink" onclick="goTab('my-courses')" data-tab="my-courses"><span class="ico">📖</span> Meus Cursos</button>
+      <button class="slink" onclick="goTab('my-certs')" data-tab="my-certs"><span class="ico">🎓</span> Meus Certificados</button>
+      <button class="slink" onclick="goTab('ferramentas')" data-tab="ferramentas"><span class="ico">🛠️</span> Criar Currículo</button>
+      <button class="slink" onclick="goTab('faq')" data-tab="faq"><span class="ico">❓</span> Dúvidas</button>
+    </div>
+    <div class="sidebar-section">
+      <span class="sidebar-lbl">Conta</span>
+      <button class="slink" onclick="goTab('profile')" data-tab="profile"><span class="ico">👤</span> Meu Perfil</button>
+    </div>
+    <div class="sidebar-section" id="nav-admin" style="display:none;">
+      <span class="sidebar-lbl">Administração</span>
+      <button class="slink" onclick="goTab('admin-students')" data-tab="admin-students"><span class="ico">👥</span> Gestão de Alunos</button>
+      <button class="slink" onclick="goTab('admin-revenue')" data-tab="admin-revenue"><span class="ico">💰</span> Receita</button>
+      <button class="slink" onclick="goTab('admin-certs')" data-tab="admin-certs"><span class="ico">📜</span> Emissão (Admin)</button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content" id="main-content">
+
+    <!-- ====== TAB: CATÁLOGO ====== -->
+    <div class="tab-section on" id="tab-catalog">
+      
+      <!-- BANNER DE NOVIDADES -->
+      <div class="news-banner" id="news-banner" style="display:none;">
+        <div class="news-banner-content">
+          <span class="news-banner-icon">🎉</span>
+          <div>
+            <h3 id="news-title">Novidade!</h3>
+            <p id="news-desc">Confira os novos cursos disponíveis.</p>
+          </div>
+        </div>
+        <span class="badge">Novo</span>
+      </div>
+
+      <div class="hero-banner" style="background:transparent;border:none;padding:0 0 48px 0;margin-bottom:48px;border-bottom:1px solid var(--border);border-radius:0;display:flex;flex-direction:column;text-align:left;gap:12px;">
+        <h2 style="font-family:'Fraunces',serif;font-size:2.8rem;font-weight:400;line-height:1.1;letter-spacing:-0.03em;margin-bottom:4px;color:var(--ink);">Aprenda algo novo hoje.</h2>
+        <p style="color:var(--ink2);font-weight:400;font-size:1.2rem;max-width:600px;">Acesse nossos cursos com exclusividade e descubra uma nova forma de expandir seu conhecimento profissional.</p>
+      </div>
+
+      <!-- BUSCA -->
+      <div class="search-box">
+        <input type="text" id="search-catalog" class="plat-input" placeholder="🔍 Buscar cursos..." onkeyup="filterCatalog()">
+        <select id="filter-category" class="plat-input" style="max-width:200px;" onchange="filterCatalog()">
+          <option value="">Todas</option>
+          <option value="Programação">Programação</option>
+          <option value="Design">Design</option>
+          <option value="Negócios">Negócios</option>
+          <option value="Idiomas">Idiomas</option>
+        </select>
+      </div>
+
+      <div class="courses-grid" id="courses-grid"></div>
+
+      <!-- DEPOIMENTOS -->
+      <div class="testimonials-section" id="testimonials-section">
+        <h3 style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:400;color:var(--ink);">O que nossos alunos dizem</h3>
+        <div class="testimonials-grid" id="testimonials-grid"></div>
+      </div>
+    </div>
+
+    <!-- ====== TAB: MEUS CURSOS ====== -->
+    <div class="tab-section" id="tab-my-courses">
+      <div class="page-header"><h2>Meus Cursos</h2><p>Seus cursos liberados para estudo.</p></div>
+      <div class="courses-grid" id="my-grid"></div>
+    </div>
+
+    <!-- ====== TAB: MEUS CERTIFICADOS ====== -->
+    <div class="tab-section" id="tab-my-certs">
+      <div class="page-header"><h2>Meus Certificados</h2><p>Certificados liberados pelo professor após a conclusão das tarefas.</p></div>
+      <div class="courses-grid" id="certs-grid"></div>
+    </div>
+
+    <!-- ====== TAB: CURRÍCULO ====== -->
+    <div class="tab-section" id="tab-ferramentas">
+      <div class="page-header"><h2>Gerador de Currículo</h2><p>Crie um documento profissional em minutos e exporte diretamente para PDF.</p></div>
+      <div id="resume-builder-wrapper">
+        <div class="cv-container app-wrapper">
+          <div class="form-container">
+            <div class="template-selector">
+              <h2 class="section-title">Escolha um Modelo</h2>
+              <div class="template-options" id="template-options">
+                <div class="template-option template-1 selected" data-template="1"><div class="template-preview"><div><div class="template-name">Moderno</div></div></div></div>
+                <div class="template-option template-2" data-template="2"><div class="template-preview"><div><div class="template-name">Clássico</div></div></div></div>
+                <div class="template-option template-3" data-template="3"><div class="template-preview"><div><div class="template-name">Criativo</div></div></div></div>
+              </div>
+            </div>
+            <div class="form-section">
+              <h2 class="section-title" style="margin-top:2rem;">Informação Pessoal</h2>
+              <div class="form-group"><input type="text" id="cv-fullName" placeholder="Nome Completo"></div>
+              <div class="form-group"><input type="text" id="cv-address" placeholder="Endereço (Ex: São Paulo, SP)"></div>
+              <div class="form-row">
+                <div class="form-group"><input type="email" id="cv-email" placeholder="E-mail"></div>
+                <div class="form-group"><input type="tel" id="cv-phone" placeholder="WhatsApp"></div>
+              </div>
+            </div>
+            <div class="form-section">
+              <h2 class="section-title" style="margin-top:2rem;">Educação</h2>
+              <div id="education-items">
+                <div class="education-item">
+                  <div class="form-row">
+                    <div class="form-group"><input type="text" id="course1" placeholder="Curso / Grau"></div>
+                    <div class="form-group"><input type="text" id="institution1" placeholder="Instituição"></div>
+                  </div>
+                  <div class="form-group"><input type="text" id="year1" placeholder="Ano de Conclusão"></div>
+                </div>
+              </div>
+              <button class="add-btn" id="add-education">+ Adicionar Educação</button>
+            </div>
+            <div class="form-section">
+              <h2 class="section-title" style="margin-top:2rem;">Experiência Profissional</h2>
+              <div id="experience-items">
+                <div class="experience-item">
+                  <div class="form-row">
+                    <div class="form-group"><input type="text" id="company1" placeholder="Nome da Empresa"></div>
+                    <div class="form-group"><input type="text" id="position1" placeholder="Cargo"></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group"><input type="text" id="startDate1" placeholder="Início"></div>
+                    <div class="form-group"><input type="text" id="endDate1" placeholder="Saída"></div>
+                  </div>
+                  <div class="form-group"><textarea id="details1" rows="2" placeholder="Detalhes da Experiência..."></textarea></div>
+                </div>
+              </div>
+              <button class="add-btn" id="add-experience">+ Adicionar Experiência</button>
+            </div>
+            <div class="form-section">
+              <h2 class="section-title" style="margin-top:2rem;">Objetivo Profissional</h2>
+              <div class="objective-options" id="objective-options">
+                <div class="objective-option" data-value="first-job"><label><input type="radio" name="objective" value="first-job"> <strong>Primeiro Emprego:</strong> Em busca da primeira oportunidade para aplicar meus conhecimentos...</label></div>
+                <div class="objective-option" data-value="professional-growth"><label><input type="radio" name="objective" value="professional-growth"> <strong>Crescimento:</strong> Busco uma posição onde possa aplicar minha experiência...</label></div>
+              </div>
+              <div class="form-group" style="margin-top:15px;"><textarea id="custom-objective" rows="2" placeholder="Ou escreva seu próprio objetivo..."></textarea></div>
+            </div>
+            <div class="optional-section disabled" id="skills-section" style="margin-top:2rem;">
+              <div class="section-toggle">
+                <span style="font-weight:400;">Incluir Habilidades</span>
+                <label class="toggle-switch"><input type="checkbox" id="toggle-skills"><span class="toggle-slider"></span></label>
+              </div>
+              <div id="skills-content">
+                <div class="form-group"><div class="skills-container" id="skills-container"></div></div>
+                <div class="form-group"><div class="form-row" style="align-items:center;"><div class="form-group" style="flex:2;"><input type="text" id="custom-skill" placeholder="Habilidade personalizada"></div><button class="add-btn" id="add-custom-skill" style="margin-top:0;flex:1;">Adicionar</button></div></div>
+              </div>
+            </div>
+            <button class="generate-btn" id="generate-pdf">Gerar Currículo em PDF</button>
+          </div>
+          <div class="preview-container">
+            <h2 class="section-title">Prévia do Currículo</h2>
+            <div class="preview-resume template-1-preview" id="resume-preview"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== TAB: PERFIL ====== -->
+    <div class="tab-section" id="tab-profile">
+      <div class="page-header"><h2>Meu Perfil</h2><p>Atualize seus dados pessoais.</p></div>
+      <div class="profile-card">
+        <div class="profile-avatar-large" id="profile-avatar">?</div>
+        <form class="profile-form" id="profile-form" onsubmit="event.preventDefault(); atualizarPerfil();">
+          <div class="form-group">
+            <label>Nome Completo</label>
+            <input type="text" id="profile-name" class="plat-input" placeholder="Seu nome">
+          </div>
+          <div class="form-group">
+            <label>E-mail</label>
+            <input type="email" id="profile-email" class="plat-input" placeholder="Seu e-mail" disabled>
+            <small style="color:var(--ink3);font-size:0.75rem;">O e-mail não pode ser alterado.</small>
+          </div>
+          <div class="form-group">
+            <label>WhatsApp / Telefone</label>
+            <input type="tel" id="profile-phone" class="plat-input" placeholder="(00) 00000-0000" maxlength="15" onkeyup="mascaraTelefone(this)">
+          </div>
+          <button type="submit" style="width:100%;padding:14px;background:var(--ink);color:var(--white);border:none;border-radius:8px;font-weight:500;cursor:pointer;font-size:15px;margin-top:16px;">Salvar Alterações</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ====== TAB: FAQ ====== -->
+    <div class="tab-section" id="tab-faq">
+      <div class="page-header"><h2>Dúvidas Frequentes</h2><p>Tudo o que você precisa saber sobre acessos, pagamentos e certificados.</p></div>
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);padding:48px;box-shadow:var(--shadow);">
+        <h3 style="font-family:'Fraunces',serif;color:var(--ink);margin-bottom:24px;font-size:1.6rem;font-weight:400;border-bottom:1px solid var(--border);padding-bottom:16px;">Acesso e Pagamentos</h3>
+        <div style="margin-bottom:32px;">
+          <strong style="color:var(--ink);font-size:1.05rem;font-weight:500;">Como libero o acesso a um curso pago?</strong>
+          <p style="color:var(--ink2);font-size:0.95rem;margin-top:8px;">Acesse o <strong>Catálogo</strong>, clique no curso desejado e depois em "Liberar Acesso". A chave PIX será exibida na tela. Realize o pagamento e clique no botão para enviar o comprovante no WhatsApp do professor. Assim que confirmado, o curso ficará disponível na aba "Meus Cursos".</p>
+        </div>
+        <div style="margin-bottom:48px;">
+          <strong style="color:var(--ink);font-size:1.05rem;font-weight:500;">Quais são as formas de pagamento aceitas?</strong>
+          <p style="color:var(--ink2);font-size:0.95rem;margin-top:8px;">Aceitamos pagamentos via <strong>PIX</strong>, <strong>Cartão de Crédito</strong> e <strong>Cartão de Débito</strong>.</p>
+        </div>
+        <h3 style="font-family:'Fraunces',serif;color:var(--ink);margin-bottom:24px;font-size:1.6rem;font-weight:400;border-bottom:1px solid var(--border);padding-bottom:16px;">Certificados</h3>
+        <div style="margin-bottom:32px;">
+          <strong style="color:var(--ink);font-size:1.05rem;font-weight:500;">Como faço para emitir o meu certificado?</strong>
+          <p style="color:var(--ink2);font-size:0.95rem;margin-top:8px;">Realize a <strong>Tarefa Obrigatória</strong> (descrita logo abaixo do vídeo) e envie no WhatsApp. Após a aprovação, o documento será liberado na aba <strong>"Meus Certificados"</strong>.</p>
+        </div>
+        <div style="border:1px solid var(--border);background:var(--canvas);padding:32px;text-align:center;border-radius:var(--r-lg);">
+          <p style="color:var(--ink2);font-weight:400;font-size:1.05rem;margin-bottom:16px;">Ainda tem dúvidas?</p>
+          <a href="https://wa.me/5521985211884" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--ink);color:var(--ink);padding:12px 24px;border-radius:8px;font-weight:500;font-size:1rem;text-decoration:none;transition:var(--transition);">Chamar no WhatsApp</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== TAB: ADMIN - ALUNOS ====== -->
+    <div class="tab-section" id="tab-admin-students">
+      <div class="page-header"><h2>Gestão de Alunos</h2></div>
+      <div class="stats-grid" id="student-stats"></div>
+      <div id="students-list"></div>
+    </div>
+
+    <!-- ====== TAB: ADMIN - RECEITA ====== -->
+    <div class="tab-section" id="tab-admin-revenue">
+      <div class="page-header"><h2>Relatório de Receita</h2></div>
+      <div class="stats-grid" id="rev-stats"></div>
+      <div id="rev-content"></div>
+    </div>
+
+    <!-- ====== TAB: ADMIN - CERTIFICADOS ====== -->
+    <div class="tab-section" id="tab-admin-certs">
+      <div class="page-header"><h2>Emissão de Certificados</h2><p>Gere os certificados oficiais em PDF para os alunos que enviaram as tarefas.</p></div>
+      <div style="max-width:600px;background:var(--white);padding:40px;border-radius:var(--r-lg);border:1px solid var(--border);box-shadow:var(--shadow);">
+        <div style="margin-bottom:24px;">
+          <input type="text" id="search-student" class="plat-input" placeholder="Pesquisar aluno..." onkeyup="filtrarAlunosCertificado()" style="margin-bottom:12px;">
+          <select id="cert-student" class="plat-input"></select>
+        </div>
+        <div style="margin-bottom:24px;">
+          <select id="cert-course" class="plat-input"></select>
+        </div>
+        <div style="margin-bottom:40px;">
+          <select id="cert-hours" class="plat-input">
+            <option value="1 hora">1 hora</option><option value="2 horas">2 horas</option><option value="3 horas">3 horas</option>
+            <option value="4 horas">4 horas</option><option value="5 horas">5 horas</option><option value="10 horas">10 horas</option>
+            <option value="15 horas">15 horas</option><option value="20 horas" selected>20 horas</option><option value="25 horas">25 horas</option>
+            <option value="30 horas">30 horas</option><option value="40 horas">40 horas</option>
+          </select>
+        </div>
+        <button onclick="gerarCertificadoPDF()" id="btn-gerar-cert" style="width:100%;padding:14px;background:var(--ink);color:white;border:none;border-radius:8px;font-weight:400;font-size:15px;">Baixar Certificado PDF</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ====== PLAYER ====== -->
+<div class="screen" id="scr-player">
+  <div class="player-bar">
+    <button class="back-btn-player" onclick="exitPlayer()">← Voltar</button>
+    <span style="font-weight:400;font-size:1rem;color:var(--ink);" id="player-course-title">Curso</span>
+  </div>
+  <div class="player-layout">
+    <div class="video-col">
+      
+      <!-- Player Universal Dinâmico injetado via JS -->
+      <div class="yt-container" id="video-container"></div>
+      
+      <div class="lesson-info">
+        <h2 id="lesson-title">Título da Aula</h2>
+        <p id="lesson-desc" style="color:var(--ink3);font-weight:400;line-height:1.6;"></p>
+        
+        <!-- TAREFA OBRIGATÓRIA -->
+        <div style="margin-top:32px;padding:32px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);">
+          <h3 style="font-size:1.1rem;color:var(--ink);margin-bottom:12px;font-weight:500;">Tarefa Obrigatória</h3>
+          <p style="font-size:0.95rem;color:var(--ink2);margin-bottom:24px;line-height:1.5;font-weight:400;">Para comprovar a sua presença e liberar o certificado, realize a atividade e envie no WhatsApp.</p>
+          <button onclick="enviarTarefaWpp()" style="background:var(--white);color:var(--ink);border:1px solid var(--border2);padding:12px 20px;border-radius:8px;font-weight:500;font-size:0.95rem;display:inline-flex;align-items:center;gap:8px;transition:var(--transition);">📤 Enviar Tarefa ao Professor</button>
+        </div>
+
+        <!-- AVALIAÇÃO -->
+        <div class="review-box" id="review-box">
+          <h3 style="font-size:1.1rem;color:var(--ink);margin-bottom:8px;font-weight:500;">Avalie este curso</h3>
+          <p style="font-size:0.9rem;color:var(--ink3);margin-bottom:8px;">Sua opinião é muito importante para nós!</p>
+          <div class="stars-container" id="stars-container">
+            <button class="star-btn" data-star="1">☆</button>
+            <button class="star-btn" data-star="2">☆</button>
+            <button class="star-btn" data-star="3">☆</button>
+            <button class="star-btn" data-star="4">☆</button>
+            <button class="star-btn" data-star="5">☆</button>
+          </div>
+          <textarea class="review-comment" id="review-comment" placeholder="Escreva seu comentário sobre o curso..."></textarea>
+          <button class="btn-review" onclick="enviarAvaliacao()">⭐ Enviar Avaliação</button>
+        </div>
+      </div>
+    </div>
+    <div class="playlist-col">
+      <div class="pl-header">Conteúdo do Curso</div>
+      <div id="playlist"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== CERTIFICADO ORIGINAL RESTAURADO ====== -->
+<div id="cert-wrapper" style="position: absolute; top: -9999px; left: -9999px; background-color: #fcfbf8; width: 1050px; height: 742px; padding: 15px; box-sizing: border-box; font-family: 'Roboto', sans-serif;">
+    <div class="certificado-borda-externa">
+        <div class="certificado-borda-interna">
+            <div class="logo-container">
+                <img src="https://i.postimg.cc/bv3WgXkG/LOGO.jpg" alt="Logo">
+            </div>
+            
+            <div class="cert-h1-title">CERTIFICADO DE CONCLUSÃO</div>
+            
+            <div class="texto-introdutorio">Certificamos para os devidos fins que</div>
+            
+            <div class="nome-aluno" id="cert-out-name">Nome do Aluno</div>
+            
+            <div class="texto-descricao">
+                concluiu com êxito o curso de aperfeiçoamento em <span id="cert-out-course" style="font-weight: 700;">Nome do Curso</span>,<br>
+                cumprindo a carga horária total de <span id="cert-out-hours" class="carga-horaria">20 horas</span>.
+            </div>
+            
+            <div class="assinaturas">
+                <div class="bloco-assinatura">
+                    <div class="iniciais-assinatura" id="cert-out-signature">Mateus Coelho</div>
+                    <hr class="linha-assinatura-hr" style="border-top: 1px solid #1a365d;">
+                    <div class="texto-assinatura">
+                        <span id="cert-out-admin" style="display: block; font-weight: 700; color: #333;">Mateus Da Silva Coelho</span>
+                        <span>Instrutor</span>
+                    </div>
+                </div>
+                
+                <div class="bloco-assinatura bloco-data">
+                    <div class="iniciais-assinatura" style="opacity: 0;">-</div> 
+                    <hr class="linha-assinatura-hr" style="border-top: 1px solid transparent;">
+                    <div class="texto-assinatura">
+                        <span id="cert-out-date" style="display: block; font-weight: 700; color: #333; font-size: 1.1em;">00/00/0000</span>
+                        <span>Data</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ====== MODAL PIX ====== -->
+<div id="modal-pix">
+  <div id="modal-pix-content">
+    <button class="close-modal" onclick="fecharModalPix()">×</button>
+    <div style="text-align:center;margin-bottom:32px;"><h2 style="font-family:'Fraunces',serif;font-size:2rem;font-weight:400;color:var(--ink);letter-spacing:-0.02em;">Liberar Acesso</h2></div>
+    <div style="background:var(--canvas);border:1px solid var(--border);border-radius:var(--r-lg);padding:32px;text-align:center;margin-bottom:32px;">
+      <small style="display:block;color:var(--ink3);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;font-size:0.75rem;margin-bottom:8px;">Curso</small>
+      <span id="pix-course-title" style="font-weight:400;font-size:1.15rem;display:block;margin-bottom:20px;color:var(--ink);">-</span>
+      <small style="display:block;color:var(--ink3);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;font-size:0.75rem;margin-bottom:8px;">Valor Único</small>
+      <span id="pix-amount" style="font-size:2.8rem;font-weight:400;color:var(--ink);font-family:'Fraunces',serif;">R$ 0,00</span>
+    </div>
+
+    <!-- CUPOM -->
+    <div class="coupon-field">
+      <input type="text" id="coupon-input" class="plat-input" placeholder="Código de desconto">
+      <button class="btn-apply-coupon" onclick="aplicarCupom()">Aplicar</button>
+    </div>
+    <div class="coupon-result" id="coupon-result"></div>
+
+    <div style="margin-bottom:40px;margin-top:16px;">
+      <label style="display:block;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;color:var(--ink3);margin-bottom:10px;">Chave PIX (E-mail)</label>
+      <div style="display:flex;gap:12px;">
+        <input type="text" id="pix-key" value="mateuscoelhocr@gmail.com" readonly style="flex:1;background:var(--white);border:1px solid var(--border2);color:var(--ink);border-radius:8px;font-family:'Inter',sans-serif;font-size:15px;padding:12px;">
+        <button onclick="copiarPix()" style="background:var(--ink);color:white;border:none;border-radius:8px;padding:0 24px;font-weight:500;font-size:14px;">Copiar</button>
+      </div>
+    </div>
+    <a id="wpp-link" href="#" target="_blank" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--white);color:var(--ink);border:1px solid var(--ink);padding:16px;border-radius:8px;font-weight:500;font-size:15px;transition:var(--transition);">📲 Enviar Comprovante</a>
+  </div>
+</div>
+
+<!-- ====== TOASTS ====== -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ====== JAVASCRIPT COMPLETO ====== -->
 <script>
-    function validarLimites(id, maximo) {
-        let elemento = document.getElementById(id);
-        let valor = parseFloat(elemento.value);
-        if (valor > maximo) elemento.value = maximo;
-        if (valor < 0) elemento.value = 0;
-        return parseFloat(elemento.value) || 0;
+// ============================================================
+// COELHOS ACADEMY - JAVASCRIPT COMPLETO
+// ============================================================
+
+// --- CONFIG ---
+const API_URL = "https://script.google.com/macros/s/AKfycbwN7FustHNLP-sRx2ddVA4oeD6fTnaMliu8pd9ZnwGV-f7RyAuaWTDJW9wagjV1jaJ-VQ/exec";
+
+// --- ESTADO GLOBAL ---
+let _user = null;
+let _courses = [];
+let _students = [];
+let _reviews = [];
+let _currentCourse = null;
+let _currentLessonIndex = 0;
+let _selectedRating = 0;
+let _couponDiscount = 0;
+let _pendingCourseId = null;
+let _progress = {};
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function mascaraTelefone(input) {
+  let v = input.value.replace(/\D/g, '');
+  if (v.length > 11) v = v.substring(0, 11);
+  if (v.length > 0) {
+    v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
+    v = v.replace(/(\d)(\d{4})$/, '$1-$2');
+  }
+  input.value = v;
+}
+
+function toast(msg, type = '') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  const icon = type === 'ok' ? '✅' : type === 'err' ? '❌' : 'ℹ️';
+  el.innerHTML = `<span>${icon}</span> ${msg}`;
+  container.appendChild(el);
+  setTimeout(() => el.classList.add('in'), 50);
+  setTimeout(() => {
+    el.classList.remove('in');
+    setTimeout(() => el.remove(), 300);
+  }, 3200);
+}
+
+function toggleMobileMenu() {
+  if (window.innerWidth >= 768) return;
+  document.getElementById('sidebar').classList.toggle('on');
+  document.getElementById('sidebar-overlay').classList.toggle('on');
+}
+
+function fecharMenuMobile() {
+  if (window.innerWidth >= 768) return;
+  document.getElementById('sidebar').classList.remove('on');
+  document.getElementById('sidebar-overlay').classList.remove('on');
+}
+
+// ============================================================
+// TEMA (DARK MODE)
+// ============================================================
+
+function toggleTheme() {
+  document.body.classList.toggle('dark-mode');
+  const icon = document.getElementById('theme-icon');
+  if (document.body.classList.contains('dark-mode')) {
+    icon.className = 'fas fa-sun';
+    localStorage.setItem('ca_theme', 'dark');
+  } else {
+    icon.className = 'fas fa-moon';
+    localStorage.setItem('ca_theme', 'light');
+  }
+}
+
+function loadTheme() {
+  const saved = localStorage.getItem('ca_theme');
+  if (saved === 'dark') {
+    document.body.classList.add('dark-mode');
+    document.getElementById('theme-icon').className = 'fas fa-sun';
+  } else {
+    document.body.classList.remove('dark-mode');
+    document.getElementById('theme-icon').className = 'fas fa-moon';
+  }
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+
+function toggleAuthMode() {
+  const login = document.getElementById('form-login');
+  const reg = document.getElementById('form-register');
+  login.style.display = login.style.display === 'none' ? 'block' : 'none';
+  reg.style.display = reg.style.display === 'none' ? 'block' : 'none';
+}
+
+async function cadastrarNaPlataforma() {
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim().toLowerCase();
+  const pass = document.getElementById('reg-pass').value;
+  const passConfirm = document.getElementById('reg-pass-confirm').value;
+  const phoneClean = document.getElementById('reg-phone').value.replace(/\D/g, '');
+  
+  if (!name || !email || !pass || !passConfirm || !phoneClean) {
+    toast('Preencha todos os campos!', 'err');
+    return;
+  }
+  if (phoneClean.length !== 11) {
+    toast('Telefone inválido.', 'err');
+    return;
+  }
+  if (pass !== passConfirm) {
+    toast('As senhas não coincidem.', 'err');
+    return;
+  }
+  
+  const btn = document.getElementById('btn-cadastrar');
+  btn.textContent = 'A registrar...';
+  btn.disabled = true;
+  
+  try {
+    const url = `${API_URL}?action=register&name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}&phone=${encodeURIComponent(phoneClean)}`;
+    const res = await fetch(url);
+    const result = await res.json();
+    
+    if (result.success) {
+      toast('Conta criada!', 'ok');
+      await fetchData(false);
+      _user = { name, email, isAdmin: false, avatar: name.charAt(0).toUpperCase(), role: 'aluno' };
+      localStorage.setItem('ca_user', JSON.stringify(_user));
+      afterLogin();
+    } else {
+      toast(result.message || 'Erro.', 'err');
+    }
+  } catch (error) {
+    toast('Erro de ligação.', 'err');
+  } finally {
+    btn.textContent = 'Finalizar Cadastro';
+    btn.disabled = false;
+  }
+}
+
+async function fetchData(shouldLoginAfter = false) {
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    _courses = data.courses || [];
+    _students = (data.students || []).map(s => {
+      let normalized = {};
+      for (let key in s) {
+        let cleanKey = key.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+        normalized[cleanKey] = s[key];
+      }
+      return normalized;
+    });
+    _reviews = data.reviews || [];
+    if (shouldLoginAfter) afterLogin();
+  } catch (e) {
+    toast('Erro de ligação com a base de dados.', 'err');
+  }
+}
+
+async function loginComPlataforma() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  if (!email || !pass) {
+    toast('Preencha os campos.', 'err');
+    return;
+  }
+  
+  const btn = document.querySelector('#form-login button');
+  const original = btn.textContent;
+  btn.textContent = 'A verificar...';
+  btn.disabled = true;
+
+  try {
+    await fetchData(false);
+    const aluno = _students.find(s => s.email && String(s.email).trim().toLowerCase() === email);
+    if (!aluno) {
+      toast('E-mail não registado.', 'err');
+      btn.textContent = original;
+      btn.disabled = false;
+      return;
+    }
+    
+    let dbPass = String(aluno.password || '').trim();
+    if (dbPass.startsWith("'")) dbPass = dbPass.substring(1);
+    
+    if (dbPass !== pass.trim()) {
+      toast('Senha incorreta.', 'err');
+      document.getElementById('login-pass').value = '';
+      btn.textContent = original;
+      btn.disabled = false;
+      return;
     }
 
-    function atualizarInterface() {
-        const fase = parseInt(document.getElementById('faseAtual').value);
-        document.getElementById('sec-fase1').classList.toggle('active', fase >= 1);
-        document.getElementById('sec-fase2').classList.toggle('active', fase >= 2);
-        document.getElementById('sec-fase3').classList.toggle('active', fase >= 3);
-        document.getElementById('sec-final').classList.toggle('active', fase === 4);
-        
-        if(fase > 0 && fase < 4) {
-            document.getElementById('lblFase').innerText = `Nota Fase ${fase}`;
-        } else if (fase === 4) {
-            document.getElementById('lblFase').innerText = `Nota Entrega`;
-        }
-        calcular();
+    _user = {
+      name: aluno.name || 'Usuário',
+      email: aluno.email,
+      isAdmin: aluno.role === 'admin',
+      avatar: aluno.avatar || (aluno.name ? aluno.name[0].toUpperCase() : 'U'),
+      role: aluno.role || 'aluno'
+    };
+    localStorage.setItem('ca_user', JSON.stringify(_user));
+    afterLogin();
+    toast(`Olá, ${_user.name.split(' ')[0]}`, 'ok');
+  } catch (erro) {
+    toast('Erro de ligação.', 'err');
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+}
+
+function afterLogin() {
+  document.getElementById('scr-login').classList.remove('on');
+  document.getElementById('scr-app').classList.add('on');
+  document.getElementById('main-content').classList.add('on');
+  document.getElementById('user-name').textContent = _user.name.split(' ')[0];
+  document.getElementById('user-av').textContent = _user.avatar;
+  document.getElementById('profile-avatar').textContent = _user.avatar;
+  document.getElementById('profile-name').value = _user.name;
+  document.getElementById('profile-email').value = _user.email;
+  
+  // Buscar telefone do aluno
+  const aluno = _students.find(s => s.email && String(s.email).trim().toLowerCase() === _user.email.toLowerCase());
+  if (aluno && aluno.phone) {
+    document.getElementById('profile-phone').value = aluno.phone;
+  }
+
+  if (_user.isAdmin) {
+    document.getElementById('nav-admin').style.display = 'block';
+    document.getElementById('btn-admin-pill').style.display = 'inline-block';
+  }
+
+  renderCatalog();
+  renderMyCourses();
+  renderMyCerts();
+  renderTestimonials();
+  if (_user.isAdmin) {
+    renderStudents();
+    renderRevenue();
+    renderAdminCerts();
+  }
+  goTab('catalog');
+}
+
+function logout() {
+  localStorage.removeItem('ca_user');
+  location.reload();
+}
+
+// ============================================================
+// PERMISSIONS
+// ============================================================
+
+function getPermissions() {
+  if (_user.isAdmin) return _courses.map(c => c.id);
+  const student = _students.find(s => s.email && String(s.email).trim().toLowerCase() === _user.email.toLowerCase());
+  const freeOnes = _courses.filter(c => c.price == 0).map(c => c.id);
+  const studentCursos = student && student.cursos ? student.cursos : [];
+  const all = [...studentCursos, ...freeOnes];
+  return all.filter(id => id !== undefined && id !== null && id !== '');
+}
+
+function getProgress() {
+  const student = _students.find(s => s.email && String(s.email).trim().toLowerCase() === _user.email.toLowerCase());
+  if (student && student.progresso) {
+    if (typeof student.progresso === 'string') {
+      try { return JSON.parse(student.progresso); } catch(e) { return {}; }
     }
+    return student.progresso;
+  }
+  return {};
+}
 
-    function calcular() {
-        const fase = parseInt(document.getElementById('faseAtual').value);
-        if (isNaN(fase)) return;
+// ============================================================
+// RENDER: CATÁLOGO
+// ============================================================
 
-        let totalAcumulado = 0;
-        let notaDestaFase = 0;
-        let maximoMomento = 0;
+function filterCatalog() {
+  renderCatalog();
+}
 
-        let calcF1 = validarLimites('f1_proj', 0.5) + validarLimites('f1_quiz', 1.5);
-        if (fase >= 1) { 
-            totalAcumulado += calcF1; 
-            maximoMomento += 2.0; 
-            if (fase === 1) notaDestaFase = calcF1;
-        }
+function renderCatalog() {
+  const perms = getPermissions();
+  const grid = document.getElementById('courses-grid');
+  const search = document.getElementById('search-catalog').value.toLowerCase();
+  const category = document.getElementById('filter-category').value;
+  
+  let filtered = _courses.filter(c => c.title);
+  
+  if (search) {
+    filtered = filtered.filter(c => 
+      c.title.toLowerCase().includes(search) || 
+      (c.desc && c.desc.toLowerCase().includes(search))
+    );
+  }
+  
+  if (category) {
+    filtered = filtered.filter(c => c.category === category);
+  }
+  
+  if (filtered.length === 0) {
+    grid.innerHTML = `<p style="padding:40px;color:var(--ink3);font-size:1.1rem;font-weight:300;text-align:center;">Nenhum curso encontrado.</p>`;
+    return;
+  }
+  
+  grid.innerHTML = filtered.map(c => {
+    const hasAccess = perms.includes(Number(c.id));
+    const priceTxt = c.price == 0 ? 'Acesso Gratuito' : `Liberar (R$ ${Number(c.price).toFixed(2).replace('.',',')})`;
+    const img = c.image ? `<img src="${c.image}" style="width:100%;height:100%;object-fit:cover;">` : 
+                          `<div style="font-size:3.5rem;display:flex;align-items:center;justify-content:center;width:100%;height:100%;">📚</div>`;
+    return `<div class="course-card">
+      <div class="card-thumb-wrap" onclick="${hasAccess ? `playCourse(${c.id})` : `abrirModalPix(${c.id})`}">
+        ${img}
+        ${!hasAccess && c.price > 0 ? '<div style="position:absolute;inset:0;background:rgba(253,249,243,.85);display:grid;place-items:center;font-size:1.1rem;font-weight:400;color:var(--ink);">🔒 Acesso Restrito</div>' : ''}
+        ${hasAccess ? '<div style="position:absolute;top:12px;right:12px;background:var(--green);color:white;padding:4px 12px;border-radius:20px;font-size:0.7rem;font-weight:600;">✓ Liberado</div>' : ''}
+      </div>
+      <div class="card-content">
+        <div class="card-title">${c.title}</div>
+        <div class="card-desc">${c.desc || ''}</div>
+        ${hasAccess ? `<button class="btn-card-go" onclick="playCourse(${c.id})">▶ Acessar Material</button>` : 
+                      `<button class="btn-card-go" style="background:transparent;border:1px solid var(--border2);color:var(--ink);" onclick="abrirModalPix(${c.id})">${priceTxt}</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
 
-        let calcF2 = validarLimites('f2_proj', 1.5) + validarLimites('f2_quiz', 1.5);
-        if (fase >= 2) { 
-            totalAcumulado += calcF2; 
-            maximoMomento += 3.0; 
-            if (fase === 2) notaDestaFase = calcF2;
-        }
+// ============================================================
+// RENDER: MEUS CURSOS (com barra de progresso)
+// ============================================================
 
-        let calcF3 = validarLimites('f3_proj', 2.0) + validarLimites('f3_quiz', 2.5) + validarLimites('f3_ext', 0.5);
-        if (fase >= 3) { 
-            totalAcumulado += calcF3; 
-            maximoMomento += 5.0; 
-            if (fase === 3) notaDestaFase = calcF3;
-        }
-        
-        if (fase === 4) {
-            let notaFechamento = validarLimites('nota_final', 2.0);
-            notaDestaFase = notaFechamento;
-            if (totalAcumulado < 10) {
-                totalAcumulado += notaFechamento;
-                if (totalAcumulado > 10) totalAcumulado = 10;
-            }
-        }
+function renderMyCourses() {
+  const perms = getPermissions();
+  const mine = _courses.filter(c => c.title && perms.includes(Number(c.id)));
+  const grid = document.getElementById('my-grid');
+  const progress = getProgress();
+  
+  if (mine.length === 0) {
+    grid.innerHTML = `<p style="padding:40px;color:var(--ink3);font-size:1.1rem;font-weight:300;">Nenhum material de estudo disponível no momento.</p>`;
+    return;
+  }
+  
+  grid.innerHTML = mine.map(c => {
+    const total = c.lessons ? c.lessons.length : 0;
+    const done = progress[c.id] ? progress[c.id].length : 0;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    
+    return `<div class="course-card" onclick="playCourse(${c.id})">
+      <div class="card-thumb-wrap">${c.image ? `<img src="${c.image}" style="width:100%;height:100%;object-fit:cover;">` : '📚'}</div>
+      <div class="card-content">
+        <div class="card-title">${c.title}</div>
+        <div class="card-desc">${c.lessons ? c.lessons.length : 0} aulas disponíveis.</div>
+        <div class="progress-wrap">
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%;"></div></div>
+          <div class="progress-text"><span>${done}/${total} concluídas</span><span>${pct}%</span></div>
+        </div>
+        <button class="btn-card-go">Continuar Estudo</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 
-        document.getElementById('notaFase').innerText = notaDestaFase.toFixed(1);
-        document.getElementById('notaTotal').innerText = totalAcumulado.toFixed(1);
-        
-        let porcentagem = (totalAcumulado / 10) * 100;
-        let barra = document.getElementById('barraProgresso');
-        barra.style.width = Math.min(porcentagem, 100) + '%';
+// ============================================================
+// RENDER: CERTIFICADOS
+// ============================================================
 
-        if (totalAcumulado >= 7) {
-            barra.style.backgroundColor = 'var(--success)';
-            document.getElementById('notaTotal').style.color = 'var(--success)';
-        } else if (totalAcumulado >= 5) {
-            barra.style.backgroundColor = 'var(--warning)';
-            document.getElementById('notaTotal').style.color = 'var(--warning)';
-        } else {
-            barra.style.backgroundColor = '#ef4444';
-            document.getElementById('notaTotal').style.color = '#ef4444';
-        }
+function renderMyCerts() {
+  const grid = document.getElementById('certs-grid');
+  const student = _students.find(s => s.email && String(s.email).trim().toLowerCase() === _user.email.toLowerCase());
+  
+  if (!student || !student.certificados) {
+    grid.innerHTML = `<div style="grid-column:1/-1;background:transparent;padding:48px 0;border-top:1px solid var(--border);border-radius:0;">
+      <h3 style="font-family:'Fraunces',serif;font-size:2rem;color:var(--ink);margin-bottom:12px;font-weight:400;">Sem documentação disponível</h3>
+      <p style="color:var(--ink3);font-size:1.05rem;font-weight:400;">Realize a tarefa obrigatória da aula e envie ao professor para análise e liberação.</p>
+    </div>`;
+    return;
+  }
 
-        document.getElementById('textoDetalhe').innerText = `Aproveitamento de ${(totalAcumulado).toFixed(1)} de 10.0 pontos.`;
+  const certIds = String(student.certificados)
+    .replace(/\./g, ',')
+    .split(/[,;]/)
+    .map(id => id.trim())
+    .filter(id => id !== "");
+
+  const myCerts = _courses.filter(c => certIds.includes(String(c.id)));
+
+  if (myCerts.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1;background:transparent;padding:48px 0;border-top:1px solid var(--border);border-radius:0;">
+      <h3 style="font-family:'Fraunces',serif;font-size:2rem;color:var(--ink);margin-bottom:12px;font-weight:400;">Sem documentação disponível</h3>
+      <p style="color:var(--ink3);font-size:1.05rem;font-weight:400;">Realize a tarefa obrigatória da aula e envie ao professor para análise e liberação.</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = myCerts.map(c => `
+    <div class="course-card" style="padding:40px;border:1px solid var(--border);border-radius:var(--r-lg);">
+      <div class="card-title" style="font-size:1.6rem;font-family:'Fraunces',serif;font-weight:400;margin-bottom:8px;">${c.title}</div>
+      <div class="card-desc" style="margin-bottom:32px;font-weight:400;font-size:1.05rem;">Carga horária autenticada: 40 horas.</div>
+      <button class="btn-card-go" style="background:transparent;color:var(--ink);border:1px solid var(--border2);padding:12px;border-radius:8px;" onclick="baixarMeuCertificado(${c.id}, this)">📄 Fazer Download PDF</button>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// RENDER: DEPOIMENTOS
+// ============================================================
+
+function renderTestimonials() {
+  const grid = document.getElementById('testimonials-grid');
+  if (!_reviews || _reviews.length === 0) {
+    grid.innerHTML = `<p style="color:var(--ink3);font-size:0.95rem;">Ainda não há depoimentos. Seja o primeiro a avaliar!</p>`;
+    return;
+  }
+  
+  // Mostrar os mais recentes primeiro (limite 6)
+  const sorted = [..._reviews].reverse().slice(0, 6);
+  
+  grid.innerHTML = sorted.map(r => {
+    const stars = '★'.repeat(Math.round(r.rating || 0)) + '☆'.repeat(5 - Math.round(r.rating || 0));
+    return `<div class="testimonial-item">
+      <div class="testimonial-stars">${stars}</div>
+      <div class="testimonial-text">"${r.comment || 'Ótimo curso!'}"</div>
+      <div class="testimonial-author">— ${r.student || 'Aluno'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// RENDER: ADMIN
+// ============================================================
+
+function renderStudents() {
+  const valid = _students.filter(s => s.email);
+  document.getElementById('student-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total Alunos</div><div class="stat-val">${valid.length}</div></div>
+  `;
+  document.getElementById('students-list').innerHTML = valid.length === 0 ? '' : `
+    <div class="table-card"><table>
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Telefone</th><th>Status</th></tr></thead>
+      <tbody>${valid.map(s => `<tr><td>${s.name}</td><td>${s.email}</td><td>${s.phone||'-'}</td><td><span style="background:var(--surface);color:var(--ink);padding:4px 10px;border-radius:6px;font-size:0.8rem;font-weight:500;border:1px solid var(--border);">${s.status||'Pendente'}</span></td></tr>`).join('')}</tbody>
+    </table></div>
+  `;
+}
+
+function renderRevenue() {
+  let revTotal = 0;
+  _students.forEach(s => {
+    if (s.cursos && s.status === 'active') {
+      const arr = Array.isArray(s.cursos) ? s.cursos : String(s.cursos).split(',');
+      arr.forEach(cid => {
+        const c = _courses.find(x => x.id == cid);
+        if (c && c.price) revTotal += Number(c.price);
+      });
     }
+  });
+  document.getElementById('rev-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Receita Bruta</div><div class="stat-val" style="color:var(--blue);">R$ ${revTotal.toFixed(2).replace('.',',')}</div></div>
+  `;
+}
 
-    function salvarNaTabela() {
-        const nomeMateria = document.getElementById('nomeMateria').value.trim();
-        const selectFase = document.getElementById('faseAtual');
-        const faseTexto = selectFase.options[selectFase.selectedIndex].text;
-        const notaTotal = document.getElementById('notaTotal').innerText;
-        const notaNumerica = parseFloat(notaTotal);
+// ============================================================
+// PLAYER UNIVERSAL DINÂMICO
+// ============================================================
 
-        if (!nomeMateria) { alert("Informe o nome da matéria!"); return; }
-        if (selectFase.value === "0") { alert("Selecione a fase!"); return; }
+function playCourse(id) {
+  _currentCourse = _courses.find(c => c.id == id);
+  if (!_currentCourse || !_currentCourse.lessons || _currentCourse.lessons.length === 0) {
+    toast('Sem aulas no momento.', 'err');
+    return;
+  }
+  document.getElementById('scr-app').classList.remove('on');
+  document.getElementById('scr-player').classList.add('on');
+  document.getElementById('player-course-title').textContent = _currentCourse.title;
+  _currentLessonIndex = 0;
+  renderLesson(0);
+}
 
-        document.getElementById('cardRelatorio').style.display = 'block';
-        document.getElementById('btnBaixar').style.display = 'block';
+function renderLesson(idx) {
+  _currentLessonIndex = idx;
+  const lesson = _currentCourse.lessons[idx];
+  if (!lesson) return;
+  
+  const container = document.getElementById('video-container');
+  // Mensagem temporária enquanto a injeção acontece
+  container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--ink3);">Carregando aula...</div>';
 
-        const tbody = document.getElementById('tabelaNotas').getElementsByTagName('tbody')[0];
-        const novaLinha = tbody.insertRow();
-        
-        let classeNota = "nota-ruim";
-        if (notaNumerica >= 7) classeNota = "nota-boa";
-        else if (notaNumerica >= 5) classeNota = "nota-media";
+  const url = lesson.url || '';
+  let driveId = null;
+  let ytId = null;
 
-        novaLinha.innerHTML = `
-            <td>${nomeMateria}</td>
-            <td>${faseTexto}</td>
-            <td class="${classeNota}">${notaTotal}</td>
-        `;
+  // Tenta extrair ID se for Google Drive
+  const driveMatch = url.match(/\/d\/(.+?)\/|(?:[?&]id=)([^&]+)/);
+  if (driveMatch) {
+      driveId = driveMatch[1] || driveMatch[2];
+  }
 
-        // Reset
-        document.getElementById('nomeMateria').value = '';
-        document.getElementById('faseAtual').value = '0';
-        document.querySelectorAll('input[type="number"]').forEach(input => input.value = '');
-        atualizarInterface();
-        document.getElementById('notaFase').innerText = '0.0';
-        document.getElementById('notaTotal').innerText = '0.0';
-        document.getElementById('notaTotal').style.color = 'var(--text-main)';
-        document.getElementById('barraProgresso').style.width = '0%';
-        document.getElementById('lblFase').innerText = 'Nota da Fase';
+  // Tenta extrair ID se for YouTube
+  if (!driveId && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+      ytId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.split('/').pop();
+  }
+
+  // Injeção Dinâmica do Player correto:
+  setTimeout(() => {
+      if (driveId) {
+          // Iframe limpo para Google Drive
+          container.innerHTML = `<iframe src="https://drive.google.com/file/d/${driveId}/preview" style="width: 100%; height: 100%; border: none; outline: none; border-radius: var(--r-lg);" allow="autoplay; fullscreen"></iframe>`;
+      } else if (ytId) {
+          // Iframe otimizado para YouTube
+          container.innerHTML = `<iframe src="https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1" style="width: 100%; height: 100%; border: none; outline: none; border-radius: var(--r-lg);" allow="autoplay; fullscreen"></iframe>`;
+      } else if (url.endsWith('.mp4') || url.endsWith('.webm')) {
+          // Player de vídeo nativo HTML5 se for arquivo direto
+          container.innerHTML = `<video controls controlsList="nodownload" style="width: 100%; height: 100%; outline: none; border-radius: var(--r-lg);" autoplay><source src="${url}" type="video/mp4">Seu navegador não suporta vídeos HTML5.</video>`;
+      } else {
+          // Fallback para qualquer outro link externo
+          container.innerHTML = `<iframe src="${url}" style="width: 100%; height: 100%; border: none; outline: none; border-radius: var(--r-lg);" allow="autoplay; fullscreen"></iframe>`;
+      }
+  }, 150);
+
+  // Preenche Título e Descrição
+  document.getElementById('lesson-title').textContent = lesson.title;
+  document.getElementById('lesson-desc').textContent = _currentCourse.desc || '';
+  
+  // Renderiza a Playlist lateral
+  const progress = getProgress();
+  const doneList = progress[_currentCourse.id] || [];
+  
+  document.getElementById('playlist').innerHTML = _currentCourse.lessons.map((l, i) => {
+    const isDone = doneList.includes(i);
+    return `<button class="pl-item ${i === idx ? 'now' : ''}" onclick="renderLesson(${i})">
+      <span style="font-size:13px;font-weight:500;color:var(--ink4);min-width:24px;">${i+1}</span>
+      <div class="pl-item-title">${l.title}</div>
+      <span class="pl-item-check ${isDone ? 'done' : ''}">${isDone ? '✓' : ''}</span>
+    </button>`;
+  }).join('');
+  
+  // Reseta as estrelas de avaliação ao trocar de aula
+  _selectedRating = 0;
+  document.querySelectorAll('.star-btn').forEach(btn => {
+      btn.textContent = '☆';
+      btn.classList.remove('active');
+  });
+  document.getElementById('review-comment').value = '';
+}
+
+function exitPlayer() {
+  // Limpa o container totalmente (isso pausa e destrói o vídeo instantaneamente)
+  document.getElementById('video-container').innerHTML = '';
+  
+  document.getElementById('scr-player').classList.remove('on');
+  document.getElementById('scr-app').classList.add('on');
+  renderMyCourses();
+}
+
+function toggleLessonCheck(lessonIndex) {
+  if (!_currentCourse) return;
+  
+  const progress = getProgress();
+  if (!progress[_currentCourse.id]) progress[_currentCourse.id] = [];
+  
+  const idx = progress[_currentCourse.id].indexOf(lessonIndex);
+  if (idx === -1) {
+    progress[_currentCourse.id].push(lessonIndex);
+  } else {
+    progress[_currentCourse.id].splice(idx, 1);
+  }
+  
+  // Salvar no backend
+  salvarProgresso(_currentCourse.id, lessonIndex);
+  
+  // Re-renderizar playlist
+  renderLesson(_currentLessonIndex);
+  renderMyCourses();
+}
+
+async function salvarProgresso(courseId, lessonIndex) {
+  try {
+    const url = `${API_URL}?action=saveProgress&email=${encodeURIComponent(_user.email)}&courseId=${courseId}&lessonIndex=${lessonIndex}`;
+    await fetch(url);
+  } catch (e) {
+    // Silencioso
+  }
+}
+
+function enviarTarefaWpp() {
+  const courseName = document.getElementById('player-course-title').textContent;
+  const lessonName = document.getElementById('lesson-title').textContent;
+  const msg = encodeURIComponent(`Olá Professor Mateus! Sou ${_user.name}. Segue a atividade do curso *${courseName}*, referente à aula *${lessonName}*:`);
+  window.open(`https://wa.me/5521985211884?text=${msg}`, '_blank');
+}
+
+// ============================================================
+// AVALIAÇÕES (REVIEWS)
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Estrelas
+  document.querySelectorAll('.star-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const star = parseInt(this.getAttribute('data-star'));
+      _selectedRating = star;
+      document.querySelectorAll('.star-btn').forEach(b => {
+        const s = parseInt(b.getAttribute('data-star'));
+        b.textContent = s <= star ? '★' : '☆';
+        b.classList.toggle('active', s <= star);
+      });
+    });
+    
+    // Hover
+    btn.addEventListener('mouseenter', function() {
+      const star = parseInt(this.getAttribute('data-star'));
+      document.querySelectorAll('.star-btn').forEach(b => {
+        const s = parseInt(b.getAttribute('data-star'));
+        b.textContent = s <= star ? '★' : '☆';
+      });
+    });
+    btn.addEventListener('mouseleave', function() {
+      document.querySelectorAll('.star-btn').forEach(b => {
+        const s = parseInt(b.getAttribute('data-star'));
+        b.textContent = s <= _selectedRating ? '★' : '☆';
+      });
+    });
+  });
+});
+
+async function enviarAvaliacao() {
+  if (!_currentCourse) {
+    toast('Nenhum curso selecionado.', 'err');
+    return;
+  }
+  if (_selectedRating === 0) {
+    toast('Selecione uma nota de 1 a 5 estrelas.', 'err');
+    return;
+  }
+  
+  const comment = document.getElementById('review-comment').value.trim();
+  
+  try {
+    const url = `${API_URL}?action=saveReview&courseId=${_currentCourse.id}&courseName=${encodeURIComponent(_currentCourse.title)}&studentName=${encodeURIComponent(_user.name)}&email=${encodeURIComponent(_user.email)}&rating=${_selectedRating}&comment=${encodeURIComponent(comment)}`;
+    await fetch(url);
+    toast('Avaliação enviada com sucesso!', 'ok');
+    _selectedRating = 0;
+    document.querySelectorAll('.star-btn').forEach(b => { b.textContent = '☆'; b.classList.remove('active'); });
+    document.getElementById('review-comment').value = '';
+    // Atualizar depoimentos
+    await fetchData(false);
+    renderTestimonials();
+  } catch (e) {
+    toast('Erro ao enviar avaliação.', 'err');
+  }
+}
+
+// ============================================================
+// PERFIL
+// ============================================================
+
+async function atualizarPerfil() {
+  const name = document.getElementById('profile-name').value.trim();
+  const phone = document.getElementById('profile-phone').value.replace(/\D/g, '');
+  
+  if (!name) {
+    toast('Nome é obrigatório.', 'err');
+    return;
+  }
+  
+  try {
+    const url = `${API_URL}?action=updateProfile&email=${encodeURIComponent(_user.email)}&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`;
+    const res = await fetch(url);
+    const result = await res.json();
+    
+    if (result.success) {
+      toast('Perfil atualizado!', 'ok');
+      _user.name = name;
+      _user.avatar = name.charAt(0).toUpperCase();
+      document.getElementById('user-name').textContent = name.split(' ')[0];
+      document.getElementById('user-av').textContent = _user.avatar;
+      document.getElementById('profile-avatar').textContent = _user.avatar;
+      localStorage.setItem('ca_user', JSON.stringify(_user));
+      await fetchData(false);
+    } else {
+      toast(result.message || 'Erro.', 'err');
     }
+  } catch (e) {
+    toast('Erro ao salvar.', 'err');
+  }
+}
 
-    function baixarImagem() {
-        const areaRelatorio = document.getElementById('cardRelatorio');
-        html2canvas(areaRelatorio, {
-            backgroundColor: '#1e293b',
-            scale: 2
-        }).then(canvas => {
-            const link = document.createElement('a');
-            link.download = 'boletim_academico.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        });
+// ============================================================
+// MODAL PIX + CUPOM
+// ============================================================
+
+let _pixCursoId = null;
+let _pixAmount = 0;
+
+function abrirModalPix(cursoId) {
+  const curso = _courses.find(c => c.id == cursoId);
+  if (!curso) return;
+  
+  _pixCursoId = cursoId;
+  _pixAmount = Number(curso.price);
+  _couponDiscount = 0;
+  
+  document.getElementById('pix-course-title').textContent = curso.title;
+  document.getElementById('pix-amount').textContent = `R$ ${_pixAmount.toFixed(2).replace('.',',')}`;
+  document.getElementById('coupon-input').value = '';
+  document.getElementById('coupon-result').style.display = 'none';
+  document.getElementById('coupon-result').className = 'coupon-result';
+  
+  document.getElementById('wpp-link').href = `https://wa.me/5521985211884?text=${encodeURIComponent(`Olá! Fiz o PIX de R$ ${_pixAmount.toFixed(2).replace('.',',')} para o curso: ${curso.title}.`)}`;
+  document.getElementById('modal-pix').style.display = 'flex';
+}
+
+function fecharModalPix() {
+  document.getElementById('modal-pix').style.display = 'none';
+  _pixCursoId = null;
+  _couponDiscount = 0;
+}
+
+function copiarPix() {
+  const input = document.getElementById('pix-key');
+  input.select();
+  input.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(input.value);
+  toast('Chave copiada!', 'ok');
+}
+
+async function aplicarCupom() {
+  const code = document.getElementById('coupon-input').value.trim();
+  if (!code) {
+    toast('Digite um código.', 'err');
+    return;
+  }
+  
+  try {
+    const url = `${API_URL}?action=validateCoupon&couponCode=${encodeURIComponent(code)}`;
+    const res = await fetch(url);
+    const result = await res.json();
+    
+    const resultDiv = document.getElementById('coupon-result');
+    if (result.success) {
+      _couponDiscount = result.discount;
+      const newAmount = _pixAmount * (1 - _couponDiscount / 100);
+      document.getElementById('pix-amount').textContent = `R$ ${newAmount.toFixed(2).replace('.',',')}`;
+      resultDiv.textContent = `✅ ${result.message}`;
+      resultDiv.className = 'coupon-result ok';
+      resultDiv.style.display = 'block';
+      toast('Cupom aplicado!', 'ok');
+      
+      // Atualizar link WhatsApp
+      document.getElementById('wpp-link').href = `https://wa.me/5521985211884?text=${encodeURIComponent(`Olá! Fiz o PIX de R$ ${newAmount.toFixed(2).replace('.',',')} (com desconto) para o curso.`)}`;
+    } else {
+      resultDiv.textContent = `❌ ${result.message}`;
+      resultDiv.className = 'coupon-result err';
+      resultDiv.style.display = 'block';
+      toast(result.message, 'err');
     }
+  } catch (e) {
+    toast('Erro ao validar cupom.', 'err');
+  }
+}
+
+// ============================================================
+// NAVEGAÇÃO
+// ============================================================
+
+function goTab(name) {
+  fecharMenuMobile();
+  document.querySelectorAll('.tab-section').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.slink').forEach(l => l.classList.remove('active'));
+  const tab = document.getElementById('tab-' + name);
+  if (tab) tab.classList.add('on');
+  
+  const link = document.querySelector(`.slink[data-tab="${name}"]`);
+  if (link) link.classList.add('active');
+  
+  const titles = {
+    'catalog': 'Catálogo',
+    'my-courses': 'Meus Cursos',
+    'my-certs': 'Certificados',
+    'faq': 'Dúvidas',
+    'profile': 'Meu Perfil',
+    'ferramentas': 'Currículo',
+    'admin-students': 'Alunos',
+    'admin-revenue': 'Receita',
+    'admin-certs': 'Emissão'
+  };
+  document.getElementById('topbar-title').textContent = titles[name] || 'App';
+}
+
+// ============================================================
+// ADMIN E CERTIFICADOS (MANTIDOS INTACTOS)
+// ============================================================
+
+function renderAdminCerts() {
+    const stuSelect = document.getElementById('cert-student');
+    const crsSelect = document.getElementById('cert-course');
+    const validStudents = _students.filter(s => s.email && s.status === 'active');
+    stuSelect.innerHTML = validStudents.map(s => `<option value="${s.name}">${s.name} (${s.email})</option>`).join('');
+    const validCourses = _courses.filter(c => c.title);
+    crsSelect.innerHTML = validCourses.map(c => `<option value="${c.title}">${c.title}</option>`).join('');
+}
+
+async function gerarCertificadoPDF() {
+    const studentName = document.getElementById('cert-student').value;
+    const courseTitle = document.getElementById('cert-course').value;
+    const courseHours = document.getElementById('cert-hours').value;
+    
+    if(!studentName || !courseTitle) { toast('Selecione aluno e curso.', 'err'); return; }
+    
+    // Injeta os dados no design original
+    document.getElementById('cert-out-name').textContent = studentName;
+    document.getElementById('cert-out-course').textContent = courseTitle;
+    document.getElementById('cert-out-hours').textContent = courseHours;
+    document.getElementById('cert-out-date').textContent = new Date().toLocaleDateString('pt-BR');
+    
+    const btn = document.getElementById('btn-gerar-cert');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A gerar PDF...'; 
+    btn.disabled = true;
+    
+    try {
+        const wrapper = document.getElementById('cert-wrapper');
+        const canvas = await html2canvas(wrapper, { scale: 2, useCORS: true, logging: false, backgroundColor: '#fcfbf8' });
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('l', 'mm', 'a4'); 
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 297, 210);
+        pdf.save(`Certificado_${studentName.replace(/\s+/g, '_')}.pdf`);
+        toast('Certificado gerado com sucesso!', 'ok');
+    } catch(e) {
+        toast('Erro ao gerar certificado.', 'err');
+    } finally {
+        btn.innerHTML = '<i class="fas fa-award"></i> Baixar Certificado PDF'; 
+        btn.disabled = false;
+    }
+}
+
+async function baixarMeuCertificado(courseId, btnElement) {
+  const curso = _courses.find(c => c.id == courseId);
+  if (!curso) return;
+
+  const studentName = _user.name;
+
+  document.getElementById('cert-out-name').textContent = studentName;
+  document.getElementById('cert-out-course').textContent = curso.title;
+  document.getElementById('cert-out-hours').textContent = "40 horas";
+  document.getElementById('cert-out-date').textContent = new Date().toLocaleDateString('pt-BR');
+  
+  const original = btnElement.innerHTML;
+  btnElement.innerHTML = '⏳ Processando...';
+  btnElement.disabled = true;
+  toast('Preparando documento...', 'ok');
+  
+  try {
+    const wrapper = document.getElementById('cert-wrapper');
+    const canvas = await html2canvas(wrapper, { scale: 2, useCORS: true, logging: false, backgroundColor: '#fcfbf8' });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('l', 'mm', 'a4');
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 297, 210);
+    pdf.save(`Certificado_${curso.title.replace(/\s+/g, '_')}.pdf`);
+    toast('Download concluído!', 'ok');
+  } catch (e) {
+    toast('Erro ao processar', 'err');
+  } finally {
+    btnElement.innerHTML = original;
+    btnElement.disabled = false;
+  }
+}
+
+function filtrarAlunosCertificado() {
+  const termo = document.getElementById('search-student').value.toLowerCase();
+  const select = document.getElementById('cert-student');
+  const validStudents = _students.filter(s => s.email && s.status === 'active');
+  const filtrados = validStudents.filter(s => 
+    s.name.toLowerCase().includes(termo) || 
+    s.email.toLowerCase().includes(termo)
+  );
+  
+  if (filtrados.length > 0) {
+    select.innerHTML = filtrados.map(s => `<option value="${s.name}">${s.name} (${s.email})</option>`).join('');
+  } else {
+    select.innerHTML = '<option value="">Não encontrado</option>';
+  }
+}
+
+// ============================================================
+// GERADOR DE CURRÍCULO
+// ============================================================
+
+const skillOptions = ["Comunicação", "Trabalho em equipa", "Liderança", "Resolução de problemas", "Pensamento crítico", "Adaptabilidade", "Criatividade", "Gestão do tempo", "JavaScript", "HTML/CSS", "React", "Node.js", "Python", "Java", "SQL", "Git/GitHub", "Figma", "Microsoft Office", "Atendimento ao cliente", "Vendas", "Inglês", "Espanhol"];
+let educationCount = 1;
+let experienceCount = 1;
+let selectedSkills = [];
+let includeSkills = false;
+let selectedTemplate = 1;
+
+function initializeResumeEvents() {
+  const skillsContainer = document.getElementById('skills-container');
+  skillOptions.forEach(skill => {
+    const el = document.createElement('div');
+    el.className = 'skill-tag';
+    el.textContent = skill;
+    el.addEventListener('click', () => {
+      const index = selectedSkills.indexOf(skill);
+      if (index === -1) {
+        if (selectedSkills.length < 12) selectedSkills.push(skill);
+      } else {
+        selectedSkills.splice(index, 1);
+      }
+      updateSkillsDisplay();
+      updateResumePreview();
+    });
+    skillsContainer.appendChild(el);
+  });
+
+  document.querySelectorAll('.template-option').forEach(option => {
+    option.addEventListener('click', function() {
+      document.querySelectorAll('.template-option').forEach(opt => opt.classList.remove('selected'));
+      this.classList.add('selected');
+      selectedTemplate = parseInt(this.getAttribute('data-template'));
+      const preview = document.getElementById('resume-preview');
+      preview.classList.remove('template-1-preview', 'template-2-preview', 'template-3-preview');
+      preview.classList.add(`template-${selectedTemplate}-preview`);
+      updateResumePreview();
+    });
+  });
+
+  document.getElementById('add-education').addEventListener('click', () => {
+    educationCount++;
+    const container = document.getElementById('education-items');
+    const item = document.createElement('div');
+    item.className = 'education-item';
+    item.innerHTML = `
+      <div class="form-row">
+        <div class="form-group"><input type="text" id="course${educationCount}" placeholder="Curso"></div>
+        <div class="form-group"><input type="text" id="institution${educationCount}" placeholder="Instituição"></div>
+      </div>
+      <div class="form-group"><input type="text" id="year${educationCount}" placeholder="Ano"></div>
+    `;
+    container.appendChild(item);
+    item.querySelectorAll('input').forEach(i => i.addEventListener('input', updateResumePreview));
+  });
+
+  document.getElementById('add-experience').addEventListener('click', () => {
+    experienceCount++;
+    const container = document.getElementById('experience-items');
+    const item = document.createElement('div');
+    item.className = 'experience-item';
+    item.innerHTML = `
+      <div class="form-row">
+        <div class="form-group"><input type="text" id="company${experienceCount}" placeholder="Empresa"></div>
+        <div class="form-group"><input type="text" id="position${experienceCount}" placeholder="Cargo"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><input type="text" id="startDate${experienceCount}" placeholder="Início"></div>
+        <div class="form-group"><input type="text" id="endDate${experienceCount}" placeholder="Saída"></div>
+      </div>
+      <div class="form-group"><textarea id="details${experienceCount}" rows="2" placeholder="Descreva suas responsabilidades..."></textarea></div>
+    `;
+    container.appendChild(item);
+    item.querySelectorAll('input, textarea').forEach(i => i.addEventListener('input', updateResumePreview));
+  });
+
+  document.getElementById('add-custom-skill').addEventListener('click', () => {
+    const input = document.getElementById('custom-skill');
+    const skill = input.value.trim();
+    if (skill && !selectedSkills.includes(skill) && selectedSkills.length < 12) {
+      selectedSkills.push(skill);
+      updateSkillsDisplay();
+      updateResumePreview();
+      input.value = '';
+    }
+  });
+
+  document.querySelectorAll('.objective-option').forEach(opt => {
+    opt.addEventListener('click', function() {
+      document.querySelectorAll('.objective-option').forEach(o => o.classList.remove('selected'));
+      this.classList.add('selected');
+      this.querySelector('input').checked = true;
+      document.getElementById('custom-objective').value = '';
+      updateResumePreview();
+    });
+  });
+
+  document.getElementById('custom-objective').addEventListener('input', () => {
+    document.querySelectorAll('.objective-option').forEach(o => {
+      o.classList.remove('selected');
+      o.querySelector('input').checked = false;
+    });
+    updateResumePreview();
+  });
+
+  document.getElementById('toggle-skills').addEventListener('change', function() {
+    includeSkills = this.checked;
+    if (includeSkills) {
+      document.getElementById('skills-section').classList.remove('disabled');
+    } else {
+      document.getElementById('skills-section').classList.add('disabled');
+    }
+    updateResumePreview();
+  });
+
+  document.querySelectorAll('#resume-builder-wrapper input, #resume-builder-wrapper textarea').forEach(el => {
+    el.addEventListener('input', updateResumePreview);
+  });
+
+  document.getElementById('generate-pdf').addEventListener('click', async () => {
+    const btn = document.getElementById('generate-pdf');
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Processando...";
+    try {
+      const preview = document.getElementById('resume-preview');
+      const origW = preview.style.width;
+      const origP = preview.style.padding;
+      preview.style.width = '210mm';
+      preview.style.padding = '20mm';
+      const canvas = await html2canvas(preview, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+      preview.style.width = origW;
+      preview.style.padding = origP;
+      const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+      const imgW = 210;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgW, imgH);
+      pdf.save((document.getElementById('cv-fullName').value || 'curriculo') + '.pdf');
+      toast('Currículo exportado!', 'ok');
+    } catch (error) {
+      toast('Erro ao gerar PDF.', 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📄 Exportar em PDF';
+    }
+  });
+}
+
+function updateSkillsDisplay() {
+  document.querySelectorAll('#skills-container .skill-tag').forEach(tag => {
+    if (selectedSkills.includes(tag.textContent)) {
+      tag.classList.add('selected');
+    } else {
+      tag.classList.remove('selected');
+    }
+  });
+}
+
+function updateResumePreview() {
+  const fn = document.getElementById('cv-fullName').value || 'Nome Completo';
+  const addr = document.getElementById('cv-address').value;
+  const em = document.getElementById('cv-email').value;
+  const ph = document.getElementById('cv-phone').value;
+  
+  let obj = '';
+  const selObj = document.querySelector('input[name="objective"]:checked');
+  const custObj = document.getElementById('custom-objective').value;
+  if (custObj) obj = custObj;
+  else if (selObj) {
+    const label = document.querySelector(`.objective-option[data-value="${selObj.value}"] label`);
+    if (label) obj = label.textContent.replace(/^\s*[^:]+:\s*/, '');
+  }
+  
+  let expHTML = '';
+  for (let i = 1; i <= experienceCount; i++) {
+    const comp = document.getElementById(`company${i}`)?.value;
+    const pos = document.getElementById(`position${i}`)?.value;
+    const st = document.getElementById(`startDate${i}`)?.value;
+    const en = document.getElementById(`endDate${i}`)?.value;
+    const det = document.getElementById(`details${i}`)?.value;
+    if (comp || pos) {
+      expHTML += `<div class="preview-item" style="margin-bottom:12px;">
+        <div class="preview-item-title" style="font-weight:500;">${comp}</div>
+        <div style="font-weight:400;color:var(--cv-secondary);">${pos}</div>
+        <div style="font-size:0.85rem;color:var(--cv-gray);margin-bottom:4px;">${st} - ${en}</div>
+        <div style="font-size:0.9rem;">${det}</div>
+      </div>`;
+    }
+  }
+  
+  let eduHTML = '';
+  for (let i = 1; i <= educationCount; i++) {
+    const c = document.getElementById(`course${i}`)?.value;
+    const inst = document.getElementById(`institution${i}`)?.value;
+    const y = document.getElementById(`year${i}`)?.value;
+    if (c || inst) {
+      eduHTML += `<div class="preview-item" style="margin-bottom:12px;">
+        <div class="preview-item-title" style="font-weight:500;">${c}</div>
+        <div style="font-weight:400;color:var(--cv-secondary);">${inst}</div>
+        <div style="font-size:0.85rem;color:var(--cv-gray);">${y}</div>
+      </div>`;
+    }
+  }
+  
+  let skillHTML = '';
+  if (includeSkills && selectedSkills.length > 0) {
+    let list = '';
+    selectedSkills.forEach(s => {
+      list += `<span style="background:var(--cv-light);padding:6px 16px;border-radius:30px;font-size:0.85rem;margin:4px;display:inline-block;border:1px solid var(--cv-light-gray);font-weight:400;">${s}</span>`;
+    });
+    skillHTML = `<div class="preview-section-title" style="margin-top:2rem;">Habilidades</div><div>${list}</div>`;
+  }
+  
+  let contactInfo = '';
+  if (addr) contactInfo += `<span style="margin-right:15px;color:var(--cv-gray);">📍 ${addr}</span>`;
+  if (em) contactInfo += `<span style="margin-right:15px;color:var(--cv-gray);">✉️ ${em}</span>`;
+  if (ph) contactInfo += `<span style="color:var(--cv-gray);">📱 ${ph}</span>`;
+
+  document.getElementById('resume-preview').innerHTML = `
+    <div class="preview-header">
+      <div class="preview-name">${fn}</div>
+      <div style="font-size:0.85rem;margin-top:8px;">${contactInfo}</div>
+    </div>
+    <div style="margin-bottom:2rem;">
+      <div class="preview-section-title">Objetivo</div>
+      <p style="font-size:0.95rem;color:var(--ink2);">${obj || 'Não informado.'}</p>
+    </div>
+    <div style="margin-bottom:2rem;">
+      <div class="preview-section-title">Experiência Profissional</div>
+      ${expHTML || '<p style="font-size:0.9rem;color:var(--cv-gray);">Não informada.</p>'}
+    </div>
+    <div>
+      <div class="preview-section-title">Formação Acadêmica</div>
+      ${eduHTML || '<p style="font-size:0.9rem;color:var(--cv-gray);">Não informada.</p>'}
+    </div>
+    ${skillHTML}
+  `;
+}
+
+// ============================================================
+// RELÓGIO EM TEMPO REAL
+// ============================================================
+function iniciarRelogio() {
+  const clockEl = document.getElementById('realtime-clock');
+  if (!clockEl) return;
+  
+  function atualizar() {
+    const agora = new Date();
+    const horas = String(agora.getHours()).padStart(2, '0');
+    const minutos = String(agora.getMinutes()).padStart(2, '0');
+    const segundos = String(agora.getSeconds()).padStart(2, '0');
+    clockEl.textContent = `${horas}:${minutos}:${segundos}`;
+  }
+  
+  atualizar(); // Atualiza imediatamente
+  setInterval(atualizar, 1000);
+}
+
+// ============================================================
+// INICIALIZAÇÃO
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadTheme();
+  iniciarRelogio();
+  
+  const saved = localStorage.getItem('ca_user');
+  if (saved) {
+    _user = JSON.parse(saved);
+    fetchData(true);
+  } else {
+    fetchData(false);
+  }
+  
+  initializeResumeEvents();
+  document.querySelector('.template-option[data-template="1"]')?.classList.add('selected');
+  updateResumePreview();
+});
 </script>
-
 </body>
 </html>
