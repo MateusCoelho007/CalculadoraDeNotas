@@ -29,6 +29,8 @@ let cursoAtual = {
     cargaHoraria: 40
 };
 
+let aulaAtual = { ordem: null, titulo: '' };
+
 // status da atividade final do curso aberto no momento: 'nao_enviada' | 'pendente' | 'aprovado' | 'reprovado'
 let statusAtividadeAtual = 'nao_enviada';
 
@@ -169,6 +171,7 @@ function updateUIPermissions() {
         carregarSolicitacoesCursoAdmin();
         carregarNotificacoes();
         carregarDashboardAdmin();
+        carregarDuvidasPendentesAdmin();
     }
 }
 
@@ -214,6 +217,7 @@ function navigateTo(targetId) {
             carregarCertificadosAdmin();
             carregarSolicitacoesCursoAdmin();
             carregarDashboardAdmin();
+            carregarDuvidasPendentesAdmin();
         }
 
         const activeLink = document.querySelector(`.nav-links a[href="#${targetId}"]`);
@@ -461,6 +465,11 @@ function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price) {
     document.getElementById('lista-aulas').innerHTML = '<p><i class="ri-loader-4-line ri-spin"></i> Carregando aulas...</p>';
     document.getElementById('video-player-container').innerHTML = `<i class="ri-google-drive-fill"></i><p>Selecione uma aula ao lado</p>`;
 
+    const btnCompartilhar = document.getElementById('btn-compartilhar-certificado');
+    if (btnCompartilhar) btnCompartilhar.style.display = 'none';
+    const duvidasBox = document.getElementById('duvidas-box');
+    if (duvidasBox) duvidasBox.style.display = 'none';
+
     const boxMateriais = document.getElementById('materiais-complementares');
     if (boxMateriais) {
         let htmlMateriais = `<h4><i class="ri-folder-download-line"></i> Materiais Extras</h4>`;
@@ -531,6 +540,7 @@ async function carregarAulasDoCurso(idCurso) {
                 document.getElementById('video-player-container').innerHTML = `<iframe src="${embedUrl}" class="drive-iframe" allow="autoplay" allowfullscreen></iframe>`;
 
                 registrarAcessoSilencioso(`Assistindo: ${aula.title}`);
+                abrirDuvidasDaAula(aula.ordem, aula.title);
             };
             lista.appendChild(li);
         });
@@ -767,21 +777,31 @@ document.getElementById('btn-certificado')?.addEventListener('click', async (e) 
         action: 'emitirCertificado',
         email: currentUser.email,
         token: currentUser.token,
-        courseId: cursoAtual.id
+        courseId: cursoAtual.id,
+        courseName: cursoAtual.nome
     });
 
     if (res.status === 'success') {
         certificadosGlobais = res.data.total;
         registrarAcessoSilencioso("Emissão de Certificado");
 
-        await gerarCertificadoPDF({
+        const dadosCertificado = {
             nomeAluno: res.data.nomeCompleto || currentUser.nomeCompleto || currentUser.name,
             nomeCurso: cursoAtual.nome,
-            cargaHoraria: res.data.cargaHoraria || cursoAtual.cargaHoraria || 40
-        });
+            cargaHoraria: res.data.cargaHoraria || cursoAtual.cargaHoraria || 40,
+            codigo: res.data.codigo
+        };
+
+        await gerarCertificadoPDF(dadosCertificado);
 
         btn.innerHTML = `<i class="ri-checkbox-circle-line"></i> Certificado Emitido`;
         btn.classList.replace('primary-btn', 'success-btn');
+
+        const btnCompartilhar = document.getElementById('btn-compartilhar-certificado');
+        if (btnCompartilhar) {
+            btnCompartilhar.style.display = 'block';
+            btnCompartilhar.onclick = () => gerarImagemCompartilhavel(dadosCertificado);
+        }
     } else {
         alert(`Não foi possível emitir o certificado: ${res.message || ''}`);
         btn.innerHTML = originalHtml;
@@ -828,19 +848,25 @@ async function carregarMeusCertificados() {
             <i class="ri-medal-line"></i>
             <h3>${cert.courseTitle}</h3>
             <p style="color: var(--text-muted); font-size: 0.85rem;">Carga horária: ${cert.cargaHoraria}h ${cert.dataLiberacao ? `• Liberado em ${cert.dataLiberacao}` : ''}</p>
-            <button class="primary-btn" style="margin-top: 1rem;" onclick='baixarCertificadoSalvo(${JSON.stringify(cert.courseTitle)}, ${cert.cargaHoraria})'>
-                <i class="ri-download-2-line"></i> Baixar PDF
-            </button>
+            <div style="display:flex; gap:8px; margin-top:1rem; width:100%;">
+                <button class="primary-btn" onclick='baixarCertificadoSalvo(${JSON.stringify(cert.courseTitle)}, ${cert.cargaHoraria}, ${JSON.stringify(cert.codigo)})'>
+                    <i class="ri-download-2-line"></i> PDF
+                </button>
+                <button class="btn-ghost" onclick='gerarImagemCompartilhavel({nomeAluno: ${JSON.stringify(currentUser.nomeCompleto || currentUser.name)}, nomeCurso: ${JSON.stringify(cert.courseTitle)}, cargaHoraria: ${cert.cargaHoraria}, codigo: ${JSON.stringify(cert.codigo)}})'>
+                    <i class="ri-share-forward-line"></i>
+                </button>
+            </div>
         </div>
     `).join('');
 }
 
 // Reemite o PDF de um certificado já liberado, sem contar de novo nas métricas globais
-async function baixarCertificadoSalvo(nomeCurso, cargaHoraria) {
+async function baixarCertificadoSalvo(nomeCurso, cargaHoraria, codigo) {
     await gerarCertificadoPDF({
         nomeAluno: currentUser.nomeCompleto || currentUser.name,
         nomeCurso: nomeCurso,
-        cargaHoraria: cargaHoraria
+        cargaHoraria: cargaHoraria,
+        codigo: codigo
     });
 }
 
@@ -853,7 +879,7 @@ async function carregarCertificadosGlobais() {
 }
 
 // Gera o certificado em PDF (jsPDF), paisagem, com a logo do curso
-async function gerarCertificadoPDF({ nomeAluno, nomeCurso, cargaHoraria }) {
+async function gerarCertificadoPDF({ nomeAluno, nomeCurso, cargaHoraria, codigo }) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -962,17 +988,18 @@ async function gerarCertificadoPDF({ nomeAluno, nomeCurso, cargaHoraria }) {
     doc.setTextColor(...corMuted);
     doc.text('Diretor Acadêmico — Coelhos Academy', W / 2, 183, { align: 'center' });
 
-    // Código único do certificado (rodapé)
-    const codigo = gerarCodigoCertificado();
+    // Código único do certificado (rodapé) — o mesmo salvo no servidor, usado na verificação pública
+    const codigoFinal = codigo || gerarCodigoCertificado();
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...corMuted);
-    doc.text(`Código de validação: ${codigo}`, W / 2, H - 14, { align: 'center' });
+    doc.text(`Código de validação: ${codigoFinal}  •  verifique em coelhosacademy.com.br`, W / 2, H - 14, { align: 'center' });
 
     const nomeArquivo = `Certificado - ${nomeCurso} - ${(nomeAluno || 'Aluno').split(' ')[0]}.pdf`;
     doc.save(nomeArquivo);
 }
 
+// Fallback apenas se, por algum motivo, o servidor não retornar um código (não deveria acontecer)
 function gerarCodigoCertificado() {
     return 'CA-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
 }
@@ -1568,7 +1595,11 @@ async function abrirArtigo(id) {
         return;
     }
 
-    const conteudoFormatado = String(res.data.conteudo || '').split('\n').map(p => p.trim() ? `<p style="margin-bottom:1rem;">${p}</p>` : '').join('');
+    const conteudoFormatado = String(res.data.conteudo || '')
+        .replace(/\\n/g, '\n')
+        .split('\n')
+        .map(p => p.trim() ? `<p style="margin-bottom:1rem;">${p.trim()}</p>` : '')
+        .join('');
 
     container.innerHTML = `
         ${res.data.capa ? `<img src="${res.data.capa}" alt="${res.data.titulo}" style="width:100%; max-height:320px; object-fit:cover; border-radius:20px; margin-bottom:1.5rem;">` : ''}
@@ -1723,4 +1754,285 @@ function mostrarPassoTour(indice) {
 function pularTour() {
     document.getElementById('tour-overlay')?.remove();
     localStorage.setItem('coelhos-tour-feito', '1');
+}
+
+// ==========================================
+// DÚVIDAS POR AULA
+// ==========================================
+async function abrirDuvidasDaAula(ordem, titulo) {
+    aulaAtual = { ordem, titulo };
+    const box = document.getElementById('duvidas-box');
+    if (box) box.style.display = 'block';
+    await carregarDuvidasDaAula();
+}
+
+async function carregarDuvidasDaAula() {
+    const lista = document.getElementById('lista-duvidas');
+    if (!lista || !cursoAtual.id || aulaAtual.ordem === null) return;
+
+    lista.innerHTML = `<p style="color:var(--text-muted); font-size:0.85rem;"><i class="ri-loader-4-line ri-spin"></i> Carregando dúvidas...</p>`;
+
+    const res = await apiRequest({
+        action: 'getDuvidasAula',
+        email: currentUser.email,
+        token: currentUser.token,
+        courseId: cursoAtual.id,
+        aulaOrdem: aulaAtual.ordem
+    });
+
+    if (res.status !== 'success' || !res.data || res.data.length === 0) {
+        lista.innerHTML = `<p style="color:var(--text-muted); font-size:0.85rem;">Nenhuma dúvida ainda nesta aula. Seja o primeiro a perguntar!</p>`;
+        return;
+    }
+
+    lista.innerHTML = res.data.map(d => `
+        <div class="duvida-item">
+            <div class="duvida-meta">${d.nomeAluno} • ${d.data}</div>
+            <div class="duvida-pergunta">${d.pergunta}</div>
+            ${d.resposta
+                ? `<div class="duvida-resposta"><i class="ri-shield-check-line"></i> ${d.resposta}</div>`
+                : `<div class="duvida-sem-resposta">Ainda sem resposta do professor.</div>`}
+        </div>
+    `).join('');
+}
+
+document.getElementById('form-duvida')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!cursoAtual.id || aulaAtual.ordem === null) return alert("Selecione uma aula primeiro.");
+
+    const btn = e.target.querySelector('button');
+    const originalText = btn.innerText;
+    btn.innerText = "Enviando...";
+    btn.disabled = true;
+
+    const res = await apiRequest({
+        action: 'enviarDuvida',
+        email: currentUser.email,
+        token: currentUser.token,
+        courseId: cursoAtual.id,
+        courseName: cursoAtual.nome,
+        aulaOrdem: aulaAtual.ordem,
+        aulaTitulo: aulaAtual.titulo,
+        pergunta: document.getElementById('duvida-texto').value
+    });
+
+    if (res.status === 'success') {
+        e.target.reset();
+        carregarDuvidasDaAula();
+    } else {
+        alert(`Erro: ${res.message}`);
+    }
+
+    btn.innerText = originalText;
+    btn.disabled = false;
+});
+
+// ==========================================
+// ADMIN: DÚVIDAS PENDENTES DE RESPOSTA
+// ==========================================
+async function carregarDuvidasPendentesAdmin() {
+    const container = document.getElementById('admin-duvidas-pendentes');
+    if (!container || currentUser.role !== 'admin') return;
+
+    container.innerHTML = `<p style="color: var(--text-muted);"><i class="ri-loader-4-line ri-spin"></i> Carregando dúvidas...</p>`;
+
+    const res = await apiRequest({ action: 'getDuvidasPendentesAdmin', email: currentUser.email, token: currentUser.token });
+
+    if (res.status !== 'success') {
+        container.innerHTML = `<p style="color:#ef4444;">${res.message || 'Erro ao carregar dúvidas.'}</p>`;
+        return;
+    }
+
+    if (!res.data || res.data.length === 0) {
+        container.innerHTML = `<p style="color: var(--text-muted);">Nenhuma dúvida pendente. ✅</p>`;
+        return;
+    }
+
+    container.innerHTML = res.data.map((item, idx) => `
+        <div class="admin-activity-item" style="flex-direction:column; align-items:stretch;">
+            <div class="admin-activity-info">
+                <strong>${item.nomeAluno}</strong>
+                <span style="font-size:0.85rem; color:var(--text-muted);">${item.aulaTitulo || 'Aula'} • ${item.data}</span>
+                <p style="margin-top:6px;">${item.pergunta}</p>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <input type="text" id="resposta-duvida-${idx}" placeholder="Escreva a resposta..." style="margin-bottom:0;">
+                <button class="btn-outline-success" style="white-space:nowrap;" onclick="responderDuvidaAdmin('${item.data}', '${item.email}', ${idx}, this)">Responder</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function responderDuvidaAdmin(dataDuvida, emailAluno, idx, btnEl) {
+    const input = document.getElementById(`resposta-duvida-${idx}`);
+    const resposta = input.value.trim();
+    if (!resposta) return alert("Escreva uma resposta antes de enviar.");
+
+    btnEl.disabled = true;
+    btnEl.innerText = "Enviando...";
+
+    const res = await apiRequest({
+        action: 'responderDuvida',
+        email: currentUser.email,
+        token: currentUser.token,
+        dataDuvida, emailAluno, resposta
+    });
+
+    if (res.status === 'success') {
+        carregarDuvidasPendentesAdmin();
+    } else {
+        alert(`Erro: ${res.message}`);
+        btnEl.disabled = false;
+        btnEl.innerText = "Responder";
+    }
+}
+
+// ==========================================
+// VERIFICAÇÃO PÚBLICA DE CERTIFICADO
+// ==========================================
+document.getElementById('form-verificar-certificado')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('.btn-submit');
+    const originalText = btn.innerText;
+    btn.innerText = "Verificando...";
+    btn.disabled = true;
+
+    const codigo = document.getElementById('verificar-codigo').value.trim();
+    const resultado = document.getElementById('resultado-verificacao');
+
+    const res = await apiRequest({ action: 'verificarCertificado', codigo });
+
+    if (res.status === 'success' && res.data.valido) {
+        resultado.innerHTML = `
+            <div class="status-pill status-aprovado" style="margin-bottom:0.8rem;"><i class="ri-checkbox-circle-line"></i> Certificado autêntico</div>
+            <p><strong>Aluno:</strong> ${res.data.nomeAluno}</p>
+            <p><strong>Curso:</strong> ${res.data.nomeCurso}</p>
+            <p><strong>Carga horária:</strong> ${res.data.cargaHoraria}h</p>
+            <p><strong>Emitido em:</strong> ${res.data.data}</p>
+        `;
+    } else {
+        resultado.innerHTML = `
+            <div class="status-pill status-reprovado"><i class="ri-close-circle-line"></i> Código não encontrado</div>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.6rem;">Verifique se digitou o código corretamente, exatamente como aparece no rodapé do certificado.</p>
+        `;
+    }
+
+    btn.innerText = originalText;
+    btn.disabled = false;
+});
+
+// ==========================================
+// COMPARTILHAR CERTIFICADO (IMAGEM PARA REDES SOCIAIS)
+// ==========================================
+async function gerarImagemCompartilhavel({ nomeAluno, nomeCurso, cargaHoraria, codigo }) {
+    const tamanho = 1080;
+    const canvas = document.createElement('canvas');
+    canvas.width = tamanho;
+    canvas.height = tamanho;
+    const ctx = canvas.getContext('2d');
+
+    // Fundo gradiente (indigo -> ciano)
+    const gradiente = ctx.createLinearGradient(0, 0, tamanho, tamanho);
+    gradiente.addColorStop(0, '#6366f1');
+    gradiente.addColorStop(1, '#22d3ee');
+    ctx.fillStyle = gradiente;
+    ctx.fillRect(0, 0, tamanho, tamanho);
+
+    // Cartão branco central
+    const margem = 60;
+    ctx.fillStyle = '#ffffff';
+    roundRect(ctx, margem, margem, tamanho - margem * 2, tamanho - margem * 2, 32);
+    ctx.fill();
+
+    // Logo
+    try {
+        const logoImg = await carregarImagemElemento(LOGO_URL);
+        const logoTam = 90;
+        ctx.drawImage(logoImg, (tamanho - logoTam) / 2, margem + 50, logoTam, logoTam);
+    } catch (e) { /* segue sem logo */ }
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#111629';
+    ctx.font = 'bold 34px Georgia, serif';
+    ctx.fillText('Certificado de Conclusão', tamanho / 2, margem + 220);
+
+    ctx.fillStyle = '#6366f1';
+    ctx.font = 'bold 46px Georgia, serif';
+    quebrarTextoCanvas(ctx, nomeAluno || 'Aluno(a)', tamanho / 2, margem + 300, tamanho - margem * 3, 54);
+
+    ctx.fillStyle = '#5b6577';
+    ctx.font = '24px Arial';
+    ctx.fillText('concluiu com sucesso o curso', tamanho / 2, margem + 400);
+
+    ctx.fillStyle = '#111629';
+    ctx.font = 'bold 30px Arial';
+    quebrarTextoCanvas(ctx, `"${nomeCurso}"`, tamanho / 2, margem + 450, tamanho - margem * 3, 38);
+
+    ctx.fillStyle = '#5b6577';
+    ctx.font = '22px Arial';
+    ctx.fillText(`Carga horária: ${cargaHoraria}h`, tamanho / 2, margem + 560);
+
+    ctx.fillStyle = '#8b96ac';
+    ctx.font = '18px Arial';
+    ctx.fillText('Coelhos Academy 🐰', tamanho / 2, tamanho - margem - 90);
+    if (codigo) ctx.fillText(`Verifique em: coelhosacademy.com.br — código ${codigo}`, tamanho / 2, tamanho - margem - 60);
+
+    canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Conquista - ${nomeCurso}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }, 'image/png');
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+}
+
+function quebrarTextoCanvas(ctx, texto, x, y, larguraMaxima, alturaLinha) {
+    const palavras = String(texto).split(' ');
+    let linha = '';
+    let linhaY = y;
+    const linhas = [];
+
+    palavras.forEach(palavra => {
+        const testeLinha = linha + palavra + ' ';
+        if (ctx.measureText(testeLinha).width > larguraMaxima && linha !== '') {
+            linhas.push(linha);
+            linha = palavra + ' ';
+        } else {
+            linha = testeLinha;
+        }
+    });
+    linhas.push(linha);
+
+    const offsetInicial = ((linhas.length - 1) * alturaLinha) / 2;
+    linhas.forEach((l, i) => ctx.fillText(l.trim(), x, y - offsetInicial + i * alturaLinha));
+}
+
+function carregarImagemElemento(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+    });
+}
+
+// ==========================================
+// BOTÃO FLUTUANTE DE WHATSAPP
+// ==========================================
+function abrirWhatsappSuporte() {
+    const numeroSuporte = "5521985211884";
+    const mensagem = encodeURIComponent("Olá! Estou navegando no site da Coelhos Academy e gostaria de tirar uma dúvida.");
+    window.open(`https://wa.me/${numeroSuporte}?text=${mensagem}`, '_blank');
 }
