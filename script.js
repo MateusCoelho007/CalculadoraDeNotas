@@ -26,7 +26,8 @@ let currentUser = {
 let cursoAtual = {
     id: null,
     nome: "",
-    cargaHoraria: 40
+    cargaHoraria: 40,
+    modoAtividade: 'final'
 };
 
 let aulaAtual = { ordem: null, titulo: '' };
@@ -415,7 +416,7 @@ async function carregarCursosVitrine() {
             } else {
                 btnText = ehPago ? "Acessar Curso" : "Acessar Grátis";
                 disabledAttr = '';
-                onclickAttr = `onclick="abrirSalaDeAula(${curso.id}, '${escapeAttr(curso.title)}', '${curso.pdfLink}', '${curso.pptLink}', ${curso.price})"`;
+                onclickAttr = `onclick="abrirSalaDeAula(${curso.id}, '${escapeAttr(curso.title)}', '${curso.pdfLink}', '${curso.pptLink}', ${curso.price}, '${curso.modoAtividade}')"`;
             }
 
             return `
@@ -445,7 +446,7 @@ function escapeAttr(str) {
     return String(str || '').replace(/'/g, "\\'");
 }
 
-function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price) {
+function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price, modoAtividade) {
     if (currentUser.role === 'guest') {
         alert("Você precisa fazer login para acessar a Sala de Aula.");
         openAuthPage('login');
@@ -460,6 +461,8 @@ function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price) {
 
     cursoAtual.id = idCurso;
     cursoAtual.nome = nomeCurso;
+    cursoAtual.modoAtividade = modoAtividade === 'por_aula' ? 'por_aula' : 'final';
+    aulaAtual = { ordem: null, titulo: '' };
 
     document.getElementById('sala-aula-titulo').innerText = nomeCurso;
     document.getElementById('lista-aulas').innerHTML = '<p><i class="ri-loader-4-line ri-spin"></i> Carregando aulas...</p>';
@@ -540,7 +543,9 @@ async function carregarAulasDoCurso(idCurso) {
                 document.getElementById('video-player-container').innerHTML = `<iframe src="${embedUrl}" class="drive-iframe" allow="autoplay" allowfullscreen></iframe>`;
 
                 registrarAcessoSilencioso(`Assistindo: ${aula.title}`);
+                aulaAtual = { ordem: aula.ordem, titulo: aula.title };
                 abrirDuvidasDaAula(aula.ordem, aula.title);
+                if (cursoAtual.modoAtividade === 'por_aula') renderizarStatusAtividadeAtual();
             };
             lista.appendChild(li);
         });
@@ -617,6 +622,10 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
     e.preventDefault();
     if (!cursoAtual.id) return;
 
+    if (cursoAtual.modoAtividade === 'por_aula' && !aulaAtual.ordem) {
+        return alert("Selecione uma aula na lista ao lado antes de enviar a atividade dela.");
+    }
+
     const inputArquivo = document.getElementById('atividade-arquivo');
     const arquivo = inputArquivo.files[0];
     if (!arquivo) return alert("Selecione um arquivo para enviar.");
@@ -669,6 +678,11 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
             arquivoTipo: arquivo.type || 'application/octet-stream'
         };
 
+        if (cursoAtual.modoAtividade === 'por_aula') {
+            payload.aulaOrdem = aulaAtual.ordem;
+            payload.aulaTitulo = aulaAtual.titulo;
+        }
+
         btn.innerText = "Enviando arquivo...";
         const res = await apiRequest(payload);
 
@@ -704,48 +718,97 @@ function arquivoParaBase64(arquivo) {
     });
 }
 
-async function carregarStatusAtividade(idCurso) {
-    const container = document.getElementById('status-atividade-container');
-    const btnCert = document.getElementById('btn-certificado');
-    const formAtividade = document.getElementById('form-atividade');
+let statusAtividadeCursoAtual = null; // guarda a resposta completa do backend (modo final ou por_aula)
 
+async function carregarStatusAtividade(idCurso) {
     if (currentUser.role === 'guest') return;
 
+    const container = document.getElementById('status-atividade-container');
     container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted);"><i class="ri-loader-4-line ri-spin"></i> Verificando status...</p>`;
 
     const res = await apiRequest({ action: 'getStatusAtividade', email: currentUser.email, token: currentUser.token, courseId: idCurso });
 
-    statusAtividadeAtual = 'nao_enviada';
-    cursoAtual.cargaHoraria = (res.data && res.data.cargaHoraria) || 40;
+    statusAtividadeCursoAtual = (res.status === 'success') ? res.data : null;
+    cursoAtual.cargaHoraria = (statusAtividadeCursoAtual && statusAtividadeCursoAtual.cargaHoraria) || 40;
 
-    if (res.status === 'success' && res.data && res.data.status) {
-        statusAtividadeAtual = res.data.status; // 'pendente' | 'aprovado' | 'reprovado'
-    }
+    renderizarStatusAtividadeAtual();
+}
 
-    renderizarStatusAtividade();
+function renderizarStatusAtividadeAtual() {
+    const container = document.getElementById('status-atividade-container');
+    const btnCert = document.getElementById('btn-certificado');
+    const formAtividade = document.getElementById('form-atividade');
+    const tituloBox = document.getElementById('atividade-box-titulo');
+    const subtituloBox = document.getElementById('atividade-box-subtitulo');
+    const progressoWrap = document.getElementById('progresso-por-aula-container');
+    const progressoBar = document.getElementById('progresso-por-aula-bar');
+    const progressoTexto = document.getElementById('progresso-por-aula-texto');
 
-    function renderizarStatusAtividade() {
-        if (statusAtividadeAtual === 'pendente') {
-            container.innerHTML = `<span class="status-pill status-pendente"><i class="ri-time-line"></i> Em análise pelo professor</span>`;
-            formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
-            btnCert.disabled = true;
-            btnCert.innerHTML = `<i class="ri-time-line"></i> Aguardando correção`;
-            btnCert.classList.remove('success-btn');
-        } else if (statusAtividadeAtual === 'aprovado') {
-            container.innerHTML = `<span class="status-pill status-aprovado"><i class="ri-checkbox-circle-line"></i> Atividade aprovada</span>`;
-            btnCert.disabled = false;
-            btnCert.innerHTML = `<i class="ri-medal-line"></i> Emitir Certificado`;
-        } else if (statusAtividadeAtual === 'reprovado') {
-            container.innerHTML = `<span class="status-pill status-reprovado"><i class="ri-close-circle-line"></i> Atividade reprovada — envie novamente</span>`;
-            btnCert.disabled = true;
-            btnCert.innerHTML = `<i class="ri-lock-line"></i> Corrija e reenvie a atividade`;
-            btnCert.classList.remove('success-btn');
+    if (!container || !statusAtividadeCursoAtual) return;
+
+    if (cursoAtual.modoAtividade === 'por_aula') {
+        const { aulasTotal, aprovadasCount, statusPorAula } = statusAtividadeCursoAtual;
+
+        // Barra de progresso geral do curso
+        progressoWrap.style.display = 'block';
+        const pct = aulasTotal > 0 ? Math.round((aprovadasCount / aulasTotal) * 100) : 0;
+        progressoBar.style.width = pct + '%';
+        progressoTexto.innerText = `${aprovadasCount} de ${aulasTotal} aula(s) com atividade aprovada`;
+
+        const certificadoLiberado = aulasTotal > 0 && aprovadasCount >= aulasTotal;
+
+        if (!aulaAtual.ordem) {
+            tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade por Aula`;
+            subtituloBox.innerText = "Selecione uma aula na lista ao lado para enviar (ou ver o status da) atividade dela.";
+            container.innerHTML = '';
+            formAtividade.style.display = 'none';
         } else {
-            container.innerHTML = `<span class="status-pill status-nao-enviada"><i class="ri-file-forbid-line"></i> Nenhuma atividade enviada</span>`;
-            btnCert.disabled = true;
-            btnCert.innerHTML = `<i class="ri-lock-line"></i> Envie a atividade para liberar`;
-            btnCert.classList.remove('success-btn');
+            const statusAula = (statusPorAula && statusPorAula[String(aulaAtual.ordem)]) || 'nao_enviada';
+            tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade da Aula ${aulaAtual.ordem}`;
+            subtituloBox.innerText = `Envie a atividade referente à aula "${aulaAtual.titulo}".`;
+            formAtividade.style.display = 'block';
+            statusAtividadeAtual = statusAula;
+            renderizarPillStatus(container, formAtividade, statusAula);
         }
+
+        btnCert.disabled = !certificadoLiberado;
+        btnCert.innerHTML = certificadoLiberado
+            ? `<i class="ri-medal-line"></i> Emitir Certificado`
+            : `<i class="ri-lock-line"></i> Aprove todas as aulas para liberar`;
+        if (!certificadoLiberado) btnCert.classList.remove('success-btn');
+
+    } else {
+        // Modo final (padrão): uma única atividade libera o curso inteiro
+        progressoWrap.style.display = 'none';
+        tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade Final`;
+        subtituloBox.innerText = "Envie sua atividade final para liberar o certificado deste curso.";
+        formAtividade.style.display = 'block';
+
+        statusAtividadeAtual = statusAtividadeCursoAtual.status || 'nao_enviada';
+        renderizarPillStatus(container, formAtividade, statusAtividadeAtual);
+
+        const aprovado = statusAtividadeAtual === 'aprovado';
+        btnCert.disabled = !aprovado;
+        btnCert.innerHTML = aprovado
+            ? `<i class="ri-medal-line"></i> Emitir Certificado`
+            : `<i class="ri-lock-line"></i> Envie a atividade para liberar`;
+        if (!aprovado) btnCert.classList.remove('success-btn');
+    }
+}
+
+function renderizarPillStatus(container, formAtividade, status) {
+    if (status === 'pendente') {
+        container.innerHTML = `<span class="status-pill status-pendente"><i class="ri-time-line"></i> Em análise pelo professor</span>`;
+        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
+    } else if (status === 'aprovado') {
+        container.innerHTML = `<span class="status-pill status-aprovado"><i class="ri-checkbox-circle-line"></i> Atividade aprovada</span>`;
+        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
+    } else if (status === 'reprovado') {
+        container.innerHTML = `<span class="status-pill status-reprovado"><i class="ri-close-circle-line"></i> Atividade reprovada — envie novamente</span>`;
+        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
+    } else {
+        container.innerHTML = `<span class="status-pill status-nao-enviada"><i class="ri-file-forbid-line"></i> Nenhuma atividade enviada</span>`;
+        formAtividade.querySelector('.btn-submit').innerText = 'Enviar Atividade';
     }
 }
 
@@ -753,8 +816,8 @@ async function carregarStatusAtividade(idCurso) {
 // CERTIFICADOS
 // ==========================================
 document.getElementById('btn-certificado')?.addEventListener('click', async (e) => {
-    if (statusAtividadeAtual !== 'aprovado') return;
     if (!cursoAtual.id) return;
+    if (e.currentTarget.disabled) return;
 
     const btn = e.currentTarget;
     const originalHtml = btn.innerHTML;
@@ -1193,7 +1256,7 @@ async function carregarAtividadesPendentesAdmin() {
         <div class="admin-activity-item">
             <div class="admin-activity-info">
                 <strong>${item.nomeAluno}</strong>
-                <span style="font-size:0.85rem; color:var(--text-muted);">${item.nomeCurso} • ${item.data}</span>
+                <span style="font-size:0.85rem; color:var(--text-muted);">${item.nomeCurso}${item.aulaOrdem ? ` • Aula ${item.aulaOrdem}${item.aulaTitulo ? ': ' + item.aulaTitulo : ''}` : ''} • ${item.data}</span>
             </div>
             <div class="admin-activity-actions">
                 <a href="${item.linkArquivo}" target="_blank" class="btn-ghost" style="padding:8px 16px; font-size:0.85rem;"><i class="ri-eye-line"></i> Ver Arquivo</a>
