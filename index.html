@@ -261,10 +261,14 @@
                     <div id="materiais-complementares" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
                     </div>
 
-                    <!-- ENVIO DE ATIVIDADE FINAL -->
+                    <!-- ENVIO DE ATIVIDADE -->
                     <div class="atividade-box">
-                        <h4><i class="ri-upload-cloud-2-line"></i> Atividade Final</h4>
-                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.8rem;">Envie sua atividade final para liberar o certificado deste curso.</p>
+                        <h4 id="atividade-box-titulo"><i class="ri-upload-cloud-2-line"></i> Atividade Final</h4>
+                        <p id="atividade-box-subtitulo" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.8rem;">Envie sua atividade final para liberar o certificado deste curso.</p>
+                        <div id="progresso-por-aula-container" style="display:none; margin-bottom: 0.8rem;">
+                            <div class="progress-track"><div id="progresso-por-aula-bar" class="progress-fill"></div></div>
+                            <span id="progresso-por-aula-texto" style="font-size:0.78rem; color:var(--text-muted);"></span>
+                        </div>
                         <div id="status-atividade-container"></div>
                         <form id="form-atividade" class="mini-form">
                             <label class="file-drop" id="file-drop-label" for="atividade-arquivo">
@@ -493,7 +497,7 @@
                 <p style="margin-bottom:1rem;"><strong>Como usamos seus dados:</strong> para autenticação na plataforma, emissão de certificados, contato via WhatsApp sobre cursos e suporte, e para melhorar sua experiência de estudo.</p>
                 <p style="margin-bottom:1rem;"><strong>Compartilhamento:</strong> seus dados não são vendidos a terceiros. Arquivos de atividades ficam armazenados em uma pasta privada do Google Drive, acessível apenas pela equipe da Coelhos Academy.</p>
                 <p style="margin-bottom:1rem;"><strong>Seus direitos:</strong> você pode solicitar a correção ou exclusão dos seus dados a qualquer momento, entrando em contato pelo WhatsApp de suporte.</p>
-                <p style="color: var(--text-muted); font-size: 0.85rem;">cookies.</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">Este é um texto padrão de exemplo — recomendamos revisão com um advogado especializado em LGPD antes de publicar oficialmente.</p>
             </div>
         </section>
 
@@ -512,7 +516,7 @@
 
         <!-- RODAPÉ -->
         <footer class="site-footer">
-            <p>Criado por <strong>Mateus Coelho</strong>.</p>
+            <p>Criado por mim, <strong>Mateus Coelho</strong>.</p>
             <p class="footer-sub">Coelhos Academy &copy; Todos os direitos reservados.</p>
             <p class="footer-sub">
                 <a href="#" onclick="navigateTo('politica-privacidade'); return false;" style="color:inherit;">Política de Privacidade</a>
