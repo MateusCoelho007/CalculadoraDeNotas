@@ -272,8 +272,20 @@
                         <div id="status-atividade-container"></div>
                         <form id="form-atividade" class="mini-form">
                             <label class="file-drop" id="file-drop-label" for="atividade-arquivo">
-                                <i class="ri-file-upload-line"></i>
-                                <span id="file-drop-text">Clique para escolher um arquivo (PDF, Word, PNG ou JPG)</span>
+                                <div id="file-drop-vazio" class="file-drop-vazio">
+                                    <i class="ri-file-upload-line"></i>
+                                    <span>Clique para escolher um arquivo (PDF, Word, PNG ou JPG)</span>
+                                </div>
+                                <div id="file-drop-selecionado" class="file-drop-selecionado" style="display:none;">
+                                    <i class="ri-file-text-line"></i>
+                                    <div class="file-drop-info">
+                                        <span id="file-drop-nome" class="file-drop-nome"></span>
+                                        <span id="file-drop-tamanho" class="file-drop-tamanho"></span>
+                                    </div>
+                                    <button type="button" id="file-drop-remover" class="file-drop-remover" title="Remover arquivo">
+                                        <i class="ri-close-line"></i>
+                                    </button>
+                                </div>
                             </label>
                             <input type="file" id="atividade-arquivo" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" style="display:none;" required>
                             <div id="atividade-progress-wrap" style="display:none; margin-top: 0.8rem;">
