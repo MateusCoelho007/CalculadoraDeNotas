@@ -642,6 +642,19 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
     progressBar.style.width = '0%';
     progressText.innerText = '0%';
 
+    // Progresso simulado: sobe suavemente até 90% enquanto aguarda o servidor, e completa ao terminar.
+    // (Usamos fetch padrão em vez de XHR com progresso real porque o Apps Script não responde
+    // corretamente ao preflight de CORS exigido para acompanhar o progresso de upload de fato.)
+    let progressoAtual = 0;
+    const intervaloProgresso = setInterval(() => {
+        if (progressoAtual < 90) {
+            progressoAtual += Math.random() * 12;
+            if (progressoAtual > 90) progressoAtual = 90;
+            progressBar.style.width = progressoAtual + '%';
+            progressText.innerText = Math.round(progressoAtual) + '%';
+        }
+    }, 250);
+
     try {
         const base64 = await arquivoParaBase64(arquivo);
         const payload = {
@@ -657,10 +670,11 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
         };
 
         btn.innerText = "Enviando arquivo...";
-        const res = await apiRequestComProgresso(payload, (pct) => {
-            progressBar.style.width = pct + '%';
-            progressText.innerText = pct + '%';
-        });
+        const res = await apiRequest(payload);
+
+        clearInterval(intervaloProgresso);
+        progressBar.style.width = '100%';
+        progressText.innerText = '100%';
 
         if (res.status === 'success') {
             alert("Atividade enviada com sucesso! Aguarde a correção do professor.");
@@ -672,6 +686,7 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
             alert(`Erro ao enviar: ${res.message}`);
         }
     } catch (err) {
+        clearInterval(intervaloProgresso);
         alert("Erro ao processar o arquivo. Tente novamente.");
     }
 
@@ -686,33 +701,6 @@ function arquivoParaBase64(arquivo) {
         reader.onload = () => resolve(reader.result.split(',')[1]);
         reader.onerror = reject;
         reader.readAsDataURL(arquivo);
-    });
-}
-
-// Igual a apiRequest, mas via XMLHttpRequest para expor o progresso de envio (upload) numa barra visual
-function apiRequestComProgresso(payload, onProgress) {
-    return new Promise((resolve) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', APPS_SCRIPT_URL, true);
-        xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
-
-        xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable && onProgress) {
-                const pct = Math.round((event.loaded / event.total) * 100);
-                onProgress(pct);
-            }
-        };
-
-        xhr.onload = () => {
-            try {
-                resolve(JSON.parse(xhr.responseText));
-            } catch (e) {
-                resolve({ status: 'error', message: 'Erro no servidor Apps Script.' });
-            }
-        };
-        xhr.onerror = () => resolve({ status: 'error', message: 'Falha de comunicação de rede.' });
-
-        xhr.send(JSON.stringify(payload));
     });
 }
 
