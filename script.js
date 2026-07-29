@@ -1197,14 +1197,14 @@ async function carregarAtividadesPendentesAdmin() {
             </div>
             <div class="admin-activity-actions">
                 <a href="${item.linkArquivo}" target="_blank" class="btn-ghost" style="padding:8px 16px; font-size:0.85rem;"><i class="ri-eye-line"></i> Ver Arquivo</a>
-                <button class="btn-outline-success" onclick="avaliarAtividade('${item.data}', '${item.email}', '${item.courseId}', 'aprovado', this)"><i class="ri-check-line"></i> Aprovar</button>
-                <button class="btn-outline-danger" onclick="avaliarAtividade('${item.data}', '${item.email}', '${item.courseId}', 'reprovado', this)"><i class="ri-close-line"></i> Reprovar</button>
+                <button class="btn-outline-success" onclick="avaliarAtividade('${item.id}', '${item.email}', '${item.courseId}', 'aprovado', this)"><i class="ri-check-line"></i> Aprovar</button>
+                <button class="btn-outline-danger" onclick="avaliarAtividade('${item.id}', '${item.email}', '${item.courseId}', 'reprovado', this)"><i class="ri-close-line"></i> Reprovar</button>
             </div>
         </div>
     `).join('');
 }
 
-async function avaliarAtividade(dataAtividade, emailAluno, courseId, decisao, btnEl) {
+async function avaliarAtividade(idAtividade, emailAluno, courseId, decisao, btnEl) {
     const item = btnEl.closest('.admin-activity-item');
     item.style.opacity = '0.5';
     item.style.pointerEvents = 'none';
@@ -1213,7 +1213,7 @@ async function avaliarAtividade(dataAtividade, emailAluno, courseId, decisao, bt
         action: 'avaliarAtividade',
         email: currentUser.email,
         token: currentUser.token,
-        dataAtividade, emailAluno, courseId, decisao
+        idAtividade, emailAluno, courseId, decisao
     });
 
     if (res.status === 'success') {
@@ -1254,13 +1254,13 @@ async function carregarSolicitacoesCursoAdmin() {
                 <span style="font-size:0.85rem; color:var(--text-muted);">${item.nomeCurso} • ${item.email} • ${item.data}</span>
             </div>
             <div class="admin-activity-actions">
-                <button class="btn-outline-success" onclick="liberarAcessoCursoAdmin('${item.data}', '${item.email}', '${item.courseId}', this)"><i class="ri-check-line"></i> Liberar Acesso</button>
+                <button class="btn-outline-success" onclick="liberarAcessoCursoAdmin('${item.id}', '${item.email}', '${item.courseId}', this)"><i class="ri-check-line"></i> Liberar Acesso</button>
             </div>
         </div>
     `).join('');
 }
 
-async function liberarAcessoCursoAdmin(dataSolicitacao, emailAluno, courseId, btnEl) {
+async function liberarAcessoCursoAdmin(idSolicitacao, emailAluno, courseId, btnEl) {
     const item = btnEl.closest('.admin-activity-item');
     item.style.opacity = '0.5';
     item.style.pointerEvents = 'none';
@@ -1269,7 +1269,7 @@ async function liberarAcessoCursoAdmin(dataSolicitacao, emailAluno, courseId, bt
         action: 'liberarAcessoCurso',
         email: currentUser.email,
         token: currentUser.token,
-        emailAluno, courseId, dataSolicitacao
+        emailAluno, courseId, idSolicitacao
     });
 
     if (res.status === 'success') {
@@ -1845,13 +1845,13 @@ async function carregarDuvidasPendentesAdmin() {
             </div>
             <div style="display:flex; gap:8px; margin-top:8px;">
                 <input type="text" id="resposta-duvida-${idx}" placeholder="Escreva a resposta..." style="margin-bottom:0;">
-                <button class="btn-outline-success" style="white-space:nowrap;" onclick="responderDuvidaAdmin('${item.data}', '${item.email}', ${idx}, this)">Responder</button>
+                <button class="btn-outline-success" style="white-space:nowrap;" onclick="responderDuvidaAdmin('${item.id}', '${item.email}', ${idx}, this)">Responder</button>
             </div>
         </div>
     `).join('');
 }
 
-async function responderDuvidaAdmin(dataDuvida, emailAluno, idx, btnEl) {
+async function responderDuvidaAdmin(idDuvida, emailAluno, idx, btnEl) {
     const input = document.getElementById(`resposta-duvida-${idx}`);
     const resposta = input.value.trim();
     if (!resposta) return alert("Escreva uma resposta antes de enviar.");
@@ -1863,7 +1863,7 @@ async function responderDuvidaAdmin(dataDuvida, emailAluno, idx, btnEl) {
         action: 'responderDuvida',
         email: currentUser.email,
         token: currentUser.token,
-        dataDuvida, emailAluno, resposta
+        idDuvida, emailAluno, resposta
     });
 
     if (res.status === 'success') {
