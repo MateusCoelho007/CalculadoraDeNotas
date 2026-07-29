@@ -62,16 +62,42 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.value = formatarWhatsApp(e.target.value);
     });
 
-    // Nome do arquivo escolhido no envio de atividade
+    // Chip do arquivo escolhido no envio de atividade
     document.getElementById('atividade-arquivo')?.addEventListener('change', (e) => {
-        const label = document.getElementById('file-drop-text');
-        if (e.target.files && e.target.files[0]) {
-            label.innerText = e.target.files[0].name;
-        } else {
-            label.innerText = 'Clique para escolher um arquivo (PDF, Word, PNG ou JPG)';
-        }
+        const arquivo = e.target.files && e.target.files[0];
+        if (arquivo) mostrarArquivoSelecionado(arquivo);
+        else limparArquivoSelecionado();
+    });
+
+    document.getElementById('file-drop-remover')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        limparArquivoSelecionado();
     });
 });
+
+function formatarTamanhoArquivo(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function mostrarArquivoSelecionado(arquivo) {
+    document.getElementById('file-drop-vazio').style.display = 'none';
+    document.getElementById('file-drop-selecionado').style.display = 'flex';
+    document.getElementById('file-drop-label').classList.add('tem-arquivo');
+    document.getElementById('file-drop-nome').innerText = arquivo.name;
+    document.getElementById('file-drop-nome').title = arquivo.name;
+    document.getElementById('file-drop-tamanho').innerText = formatarTamanhoArquivo(arquivo.size);
+}
+
+function limparArquivoSelecionado() {
+    const input = document.getElementById('atividade-arquivo');
+    if (input) input.value = '';
+    document.getElementById('file-drop-vazio').style.display = 'flex';
+    document.getElementById('file-drop-selecionado').style.display = 'none';
+    document.getElementById('file-drop-label').classList.remove('tem-arquivo');
+}
 
 // ==========================================
 // AVISO DE CAPS LOCK
@@ -544,8 +570,10 @@ async function carregarAulasDoCurso(idCurso) {
 
                 registrarAcessoSilencioso(`Assistindo: ${aula.title}`);
                 aulaAtual = { ordem: aula.ordem, titulo: aula.title };
+                limparArquivoSelecionado();
                 abrirDuvidasDaAula(aula.ordem, aula.title);
-                if (cursoAtual.modoAtividade === 'por_aula') renderizarStatusAtividadeAtual();
+                // Busca o status direto do servidor (não usa cache) para garantir que a aula certa mostre o status certo.
+                if (cursoAtual.modoAtividade === 'por_aula') carregarStatusAtividade(cursoAtual.id);
             };
             lista.appendChild(li);
         });
@@ -693,7 +721,7 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
         if (res.status === 'success') {
             alert("Atividade enviada com sucesso! Aguarde a correção do professor.");
             e.target.reset();
-            document.getElementById('file-drop-text').innerText = 'Clique para escolher um arquivo (PDF, Word, PNG ou JPG)';
+            limparArquivoSelecionado();
             registrarAcessoSilencioso(`Enviou atividade do curso: ${cursoAtual.nome}`);
             carregarStatusAtividade(cursoAtual.id);
         } else {
@@ -763,7 +791,7 @@ function renderizarStatusAtividadeAtual() {
             container.innerHTML = '';
             formAtividade.style.display = 'none';
         } else {
-            const statusAula = (statusPorAula && statusPorAula[String(aulaAtual.ordem)]) || 'nao_enviada';
+            const statusAula = (statusPorAula && statusPorAula[String(aulaAtual.ordem).trim()]) || 'nao_enviada';
             tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade da Aula ${aulaAtual.ordem}`;
             subtituloBox.innerText = `Envie a atividade referente à aula "${aulaAtual.titulo}".`;
             formAtividade.style.display = 'block';
