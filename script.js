@@ -775,32 +775,183 @@ function extrairIdYoutube(url) {
 }
 
 /**
- * Monta o player de YouTube "vestido" com a identidade visual da Coelhos Academy:
- * uma moldura com cabeçalho de marca por cima do player oficial do YouTube.
- * Usa o domínio youtube-nocookie.com (modo de privacidade avançada do próprio
- * YouTube — não carrega cookies de rastreamento até o aluno clicar em play).
+ * ----------------------------------------------------------------------------
+ * PLAYER DE YOUTUBE COM CONTROLES 100% PRÓPRIOS
+ * ----------------------------------------------------------------------------
+ * Em vez de simplesmente embutir o player padrão do YouTube (que mostra logo,
+ * título do vídeo, nome do canal, botão de CC, engrenagem, etc.), aqui a gente:
+ *
+ *   1) Mostra uma capa própria (thumbnail do vídeo + botão de play com o
+ *      gradiente da Coelhos Academy) ANTES de carregar qualquer coisa do YouTube.
+ *   2) Só ao clicar em play, cria o player oficial do YouTube ESCONDIDO
+ *      (controls: 0 — sem nenhum botão nativo deles) e passa a controlá-lo
+ *      via JavaScript com uma barra de controles construída do zero (play/
+ *      pause, barra de progresso, tempo, mudo, tela cheia).
+ *
+ * Isso é o máximo que dá pra "disfarçar" um vídeo do YouTube sem violar as
+ * regras deles (o vídeo em si continua vindo do YouTube — não tem como um
+ * site sem servidor de vídeo próprio fugir disso — mas nenhum controle,
+ * marca ou título deles fica visível).
+ * ----------------------------------------------------------------------------
  */
-function renderizarPlayerYoutube(container, idYoutube, tituloAula, numeroAula) {
-    const embedUrl = `https://www.youtube-nocookie.com/embed/${idYoutube}?rel=0&modestbranding=1&iv_load_policy=3&color=white&playsinline=1`;
-    const rotuloAula = numeroAula ? `Aula ${numeroAula}` : 'Aula';
 
+let playerYoutubeAtual = null; // guarda o player em uso, pra "desligar" ao trocar de aula
+let ytApiPromise = null;       // evita carregar a API do YouTube mais de uma vez
+
+// Carrega o script oficial da API do YouTube (iframe_api) uma única vez por sessão.
+function carregarYoutubeIframeAPI() {
+    if (window.YT && window.YT.Player) return Promise.resolve(); // já carregada antes
+    if (ytApiPromise) return ytApiPromise; // já está carregando, reaproveita a mesma Promise
+
+    ytApiPromise = new Promise((resolve) => {
+        window.onYouTubeIframeAPIReady = resolve; // o YouTube chama essa função global quando terminar
+        const tagScript = document.createElement('script');
+        tagScript.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tagScript);
+    });
+    return ytApiPromise;
+}
+
+// Formata segundos totais em "M:SS" (ex: 143 -> "2:23") pro relógio do player.
+function formatarTempoVideo(segundosTotais) {
+    const total = Math.max(0, Math.floor(segundosTotais || 0));
+    const minutos = Math.floor(total / 60);
+    const segundos = total % 60;
+    return `${minutos}:${String(segundos).padStart(2, '0')}`;
+}
+
+function renderizarPlayerYoutube(container, idYoutube, tituloAula, numeroAula) {
+    // Se já existia um player tocando (de outra aula), destrói ele primeiro —
+    // evita um vídeo "fantasma" continuar rodando em segundo plano.
+    if (playerYoutubeAtual && typeof playerYoutubeAtual.destroy === 'function') {
+        try { playerYoutubeAtual.destroy(); } catch (erro) { /* ignora — o player já pode ter sumido */ }
+    }
+    playerYoutubeAtual = null;
+
+    const rotuloAula = numeroAula ? `Aula ${numeroAula}` : 'Aula';
+    const thumbnail = `https://img.youtube.com/vi/${idYoutube}/hqdefault.jpg`;
+
+    // Monta a estrutura: cabeçalho fino de marca + capa própria (clicável) + barra de controles customizada.
     container.innerHTML = `
         <div class="video-frame-custom">
             <div class="video-frame-header">
-                <span class="video-frame-brand"><i class="ri-play-circle-fill"></i> Coelhos <strong>Academy</strong></span>
+                <span class="video-frame-brand"><i class="ri-graduation-cap-fill"></i> Coelhos Academy</span>
                 <span class="video-frame-tag">${rotuloAula}${tituloAula ? ': ' + tituloAula : ''}</span>
             </div>
             <div class="video-frame-body">
-                <iframe
-                    src="${embedUrl}"
-                    title="${tituloAula || 'Vídeo da aula'}"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowfullscreen
-                    loading="lazy">
-                </iframe>
+                <div id="yt-player-mount"></div>
+
+                <div class="custom-video-overlay" id="custom-video-overlay" style="background-image:url('${thumbnail}');">
+                    <button class="custom-play-btn" id="custom-play-btn" aria-label="Reproduzir vídeo"><i class="ri-play-fill"></i></button>
+                </div>
+
+                <div class="custom-video-controls" id="custom-video-controls" style="display:none;">
+                    <button class="custom-ctrl-btn" id="custom-playpause-btn" aria-label="Pausar ou reproduzir"><i class="ri-pause-fill"></i></button>
+                    <span class="custom-time" id="custom-time-current">0:00</span>
+                    <div class="custom-progress-track" id="custom-progress-track">
+                        <div class="custom-progress-fill" id="custom-progress-fill"></div>
+                    </div>
+                    <span class="custom-time" id="custom-time-duration">0:00</span>
+                    <button class="custom-ctrl-btn" id="custom-mute-btn" aria-label="Ativar ou desativar o som"><i class="ri-volume-up-line"></i></button>
+                    <button class="custom-ctrl-btn" id="custom-fullscreen-btn" aria-label="Tela cheia"><i class="ri-fullscreen-line"></i></button>
+                </div>
             </div>
         </div>
     `;
+
+    // Só clicando em play é que a gente carrega a API e cria o player de verdade —
+    // até lá, o YouTube nem sabe que essa página existe (mais leve e mais privado).
+    document.getElementById('custom-play-btn').addEventListener('click', async () => {
+        await carregarYoutubeIframeAPI();
+
+        // Se o aluno já trocou de aula enquanto a API carregava, não faz nada (evita bug de troca rápida).
+        if (!document.getElementById('yt-player-mount')) return;
+
+        playerYoutubeAtual = new YT.Player('yt-player-mount', {
+            videoId: idYoutube,
+            playerVars: {
+                controls: 0,        // esconde TODOS os controles nativos do YouTube
+                modestbranding: 1,  // reduz a marca do YouTube ao mínimo permitido por eles
+                rel: 0,             // não sugere vídeos de outros canais ao pausar
+                iv_load_policy: 3,  // esconde anotações/cards
+                cc_load_policy: 0,  // não força legendas ligadas
+                disablekb: 1,       // desliga atalhos de teclado do player nativo (usamos os nossos controles)
+                fs: 0,              // esconde o botão de tela cheia deles (o nosso substitui)
+                playsinline: 1,
+                autoplay: 1,
+                origin: window.location.origin
+            },
+            events: {
+                onReady: (evento) => {
+                    document.getElementById('custom-video-overlay').style.display = 'none';
+                    document.getElementById('custom-video-controls').style.display = 'flex';
+                    evento.target.playVideo();
+                    configurarControlesCustomizadosYoutube(evento.target);
+                }
+            }
+        });
+    });
+}
+
+/**
+ * Liga os botões da barra de controles customizada (play/pause, progresso,
+ * mudo, tela cheia) ao player de YouTube de verdade, e mantém a barra de
+ * progresso e o relógio atualizados a cada meio segundo.
+ */
+function configurarControlesCustomizadosYoutube(player) {
+    const btnPlayPause = document.getElementById('custom-playpause-btn');
+    const trilhaProgresso = document.getElementById('custom-progress-track');
+    const preenchimentoProgresso = document.getElementById('custom-progress-fill');
+    const tempoAtualEl = document.getElementById('custom-time-current');
+    const tempoTotalEl = document.getElementById('custom-time-duration');
+    const btnMudo = document.getElementById('custom-mute-btn');
+    const btnTelaCheia = document.getElementById('custom-fullscreen-btn');
+    if (!btnPlayPause) return; // a aula já foi trocada antes disso rodar
+
+    btnPlayPause.onclick = () => {
+        if (player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
+        else player.playVideo();
+    };
+
+    // Clicar em qualquer ponto da trilha "pula" o vídeo pra aquele ponto (seek).
+    trilhaProgresso.onclick = (evento) => {
+        const retangulo = trilhaProgresso.getBoundingClientRect();
+        const porcentagem = (evento.clientX - retangulo.left) / retangulo.width;
+        const duracao = player.getDuration();
+        if (duracao) player.seekTo(duracao * porcentagem, true);
+    };
+
+    btnMudo.onclick = () => {
+        if (player.isMuted()) {
+            player.unMute();
+            btnMudo.innerHTML = '<i class="ri-volume-up-line"></i>';
+        } else {
+            player.mute();
+            btnMudo.innerHTML = '<i class="ri-volume-mute-line"></i>';
+        }
+    };
+
+    btnTelaCheia.onclick = () => {
+        const moldura = document.querySelector('.video-frame-custom');
+        if (moldura && moldura.requestFullscreen) moldura.requestFullscreen();
+    };
+
+    // Atualiza a barra de progresso, o relógio e o ícone de play/pause a cada 500ms.
+    const intervaloAtualizacao = setInterval(() => {
+        // Se os elementos sumiram da tela (o aluno trocou de aula), para o loop pra não gastar memória à toa.
+        if (!document.getElementById('custom-progress-fill')) {
+            clearInterval(intervaloAtualizacao);
+            return;
+        }
+        const atual = player.getCurrentTime() || 0;
+        const duracao = player.getDuration() || 0;
+        if (duracao > 0) preenchimentoProgresso.style.width = ((atual / duracao) * 100) + '%';
+        tempoAtualEl.innerText = formatarTempoVideo(atual);
+        tempoTotalEl.innerText = formatarTempoVideo(duracao);
+        btnPlayPause.innerHTML = (player.getPlayerState() === YT.PlayerState.PLAYING)
+            ? '<i class="ri-pause-fill"></i>'
+            : '<i class="ri-play-fill"></i>';
+    }, 500);
 }
 
 // ==========================================
