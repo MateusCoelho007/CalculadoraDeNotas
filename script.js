@@ -2,6 +2,43 @@
  * ============================================================================
  * COELHOS ACADEMY - MOTOR FRONTEND 2.0
  * ============================================================================
+ *
+ * ÍNDICE DESTE ARQUIVO (use Ctrl+F / Cmd+F e cole o título da seção que
+ * procura — todos os títulos abaixo existem literalmente no código):
+ *
+ *   INICIALIZAÇÃO DA PÁGINA .......................... configura tema, data, listeners iniciais
+ *   AVISO DE CAPS LOCK ................................ aviso visual no login/cadastro
+ *   PADRONIZAÇÃO DO WHATSAPP .......................... máscara de telefone (99) 99999-9999
+ *   ESQUECI MINHA SENHA -> SUPORTE VIA WHATSAPP ....... botão de suporte
+ *   INTERFACE E NAVEGAÇÃO ............................. troca de tema, menu mobile, navigateTo()
+ *   COMUNICAÇÃO COM API (FETCH) ....................... apiRequest() — TODA chamada ao backend passa aqui
+ *   AUTENTICAÇÃO E CADASTRO ........................... login, registro, logout
+ *   MOTOR DE CURSOS E AULAS ........................... grade de cursos, sala de aula, PLAYER DE VÍDEO
+ *   AVALIAÇÕES E COMENTÁRIOS .......................... estrelas e comentários por curso
+ *   ENVIO DE ATIVIDADE FINAL .......................... upload de atividade (final ou por aula)
+ *   CERTIFICADOS ....................................... emissão + geração do PDF
+ *   MEUS CERTIFICADOS (ALUNO) ......................... listagem de certificados do aluno
+ *   FLASHCARDS (ANKI) DINÂMICO ........................ cartões de memorização com repetição espaçada
+ *   REGISTRO DE LOGS (ADMIN PANEL) .................... histórico de acessos
+ *   ADMIN: FILA DE ATIVIDADES PENDENTES ............... aprovar/reprovar atividades
+ *   ADMIN: SOLICITAÇÕES DE ACESSO A CURSOS PAGOS ...... liberar/revogar acesso pago
+ *   RECUPERAÇÃO DE ACESSO (SELF-SERVICE) .............. fluxo de "esqueci minha senha" automático
+ *   ANÚNCIOS (BANNER PÚBLICO) ......................... banner de propaganda antes do login
+ *   NOTIFICAÇÕES INTERNAS (SINO) ...................... sino de notificações do topo
+ *   MEU PERFIL ......................................... edição de dados + troca de senha
+ *   GAMIFICAÇÃO: RANKING .............................. ranking público de alunos
+ *   BLOG / ARTIGOS ..................................... blog público do site
+ *   ADMIN: DASHBOARD COM GRÁFICOS ..................... gráficos do painel admin (Chart.js)
+ *   ONBOARDING: TOUR GUIADO ............................ tour do primeiro acesso do aluno
+ *   DÚVIDAS POR AULA ................................... perguntas e respostas por aula
+ *   ADMIN: DÚVIDAS PENDENTES DE RESPOSTA .............. fila de dúvidas pro professor responder
+ *   VERIFICAÇÃO PÚBLICA DE CERTIFICADO ................ página /verificar (sem precisar login)
+ *   COMPARTILHAR CERTIFICADO (IMAGEM) ................. gera imagem pra Instagram/LinkedIn
+ *   BOTÃO FLUTUANTE DE WHATSAPP ........................ suporte sempre visível
+ *
+ * DICA: se for mexer no PLAYER DE VÍDEO (YouTube/Drive/link direto), procure
+ * por "renderizarPlayerAula" — é a função que decide como cada vídeo é tocado.
+ * ============================================================================
  */
 
 // URL DO APPS SCRIPT - Banco de Dados
@@ -9,6 +46,41 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3YQ8A0T4Q9k7h
 
 // Logo usada no certificado e (opcionalmente) na marca
 const LOGO_URL = "https://i.postimg.cc/qvJD9HPp/LOGO.jpg";
+
+/**
+ * ----------------------------------------------------------------------------
+ * PERFORMANCE: CARREGAMENTO SOB DEMANDA DE BIBLIOTECAS EXTERNAS
+ * ----------------------------------------------------------------------------
+ * jsPDF (gera o certificado) e Chart.js (gráficos do admin) são bibliotecas
+ * relativamente pesadas que a MAIORIA dos visitantes nunca usa (só quem emite
+ * certificado ou é admin). Em vez de forçar todo mundo a baixar as duas em
+ * toda visita, elas só são baixadas na hora exata em que a funcionalidade que
+ * depende delas é acionada — ver uso em gerarCertificadoPDF() e
+ * carregarDashboardAdmin().
+ *
+ * Como usar em qualquer lugar novo do código:
+ *   await carregarBibliotecaExterna('https://.../minha-lib.js', 'NomeGlobalDaLib');
+ * ============================================================================
+ */
+const CDN_JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+const CDN_CHARTJS = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+const bibliotecasCarregadas = {}; // cache simples: evita baixar a mesma lib duas vezes na mesma sessão
+
+function carregarBibliotecaExterna(url, nomeGlobal) {
+    return new Promise((resolve, reject) => {
+        // Já carregada nesta sessão, ou já existe no window por outro motivo? Não baixa de novo.
+        if (bibliotecasCarregadas[url] || (nomeGlobal && window[nomeGlobal])) {
+            bibliotecasCarregadas[url] = true;
+            resolve();
+            return;
+        }
+        const tagScript = document.createElement('script');
+        tagScript.src = url;
+        tagScript.onload = () => { bibliotecasCarregadas[url] = true; resolve(); };
+        tagScript.onerror = () => reject(new Error(`Não foi possível carregar: ${url}`));
+        document.head.appendChild(tagScript);
+    });
+}
 
 let certificadosGlobais = 0;
 
@@ -26,7 +98,8 @@ let currentUser = {
 let cursoAtual = {
     id: null,
     nome: "",
-    cargaHoraria: 40
+    cargaHoraria: 40,
+    modoAtividade: 'final'
 };
 
 let aulaAtual = { ordem: null, titulo: '' };
@@ -61,16 +134,42 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.value = formatarWhatsApp(e.target.value);
     });
 
-    // Nome do arquivo escolhido no envio de atividade
+    // Chip do arquivo escolhido no envio de atividade
     document.getElementById('atividade-arquivo')?.addEventListener('change', (e) => {
-        const label = document.getElementById('file-drop-text');
-        if (e.target.files && e.target.files[0]) {
-            label.innerText = e.target.files[0].name;
-        } else {
-            label.innerText = 'Clique para escolher um arquivo (PDF, Word, PNG ou JPG)';
-        }
+        const arquivo = e.target.files && e.target.files[0];
+        if (arquivo) mostrarArquivoSelecionado(arquivo);
+        else limparArquivoSelecionado();
+    });
+
+    document.getElementById('file-drop-remover')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        limparArquivoSelecionado();
     });
 });
+
+function formatarTamanhoArquivo(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function mostrarArquivoSelecionado(arquivo) {
+    document.getElementById('file-drop-vazio').style.display = 'none';
+    document.getElementById('file-drop-selecionado').style.display = 'flex';
+    document.getElementById('file-drop-label').classList.add('tem-arquivo');
+    document.getElementById('file-drop-nome').innerText = arquivo.name;
+    document.getElementById('file-drop-nome').title = arquivo.name;
+    document.getElementById('file-drop-tamanho').innerText = formatarTamanhoArquivo(arquivo.size);
+}
+
+function limparArquivoSelecionado() {
+    const input = document.getElementById('atividade-arquivo');
+    if (input) input.value = '';
+    document.getElementById('file-drop-vazio').style.display = 'flex';
+    document.getElementById('file-drop-selecionado').style.display = 'none';
+    document.getElementById('file-drop-label').classList.remove('tem-arquivo');
+}
 
 // ==========================================
 // AVISO DE CAPS LOCK
@@ -331,6 +430,7 @@ document.getElementById('form-register')?.addEventListener('submit', async (e) =
         currentUser.rankingPublico = !!res.data.rankingPublico;
 
         updateUIPermissions();
+        carregarCursosVitrine(); // refaz a grade de cursos: agora que sabemos os cursos liberados, os botões "Comprar"/"Acessar" ficam corretos
         document.getElementById('form-register').reset();
         registrarAcessoSilencioso("Novo Cadastro");
         navigateTo('dashboard');
@@ -365,6 +465,7 @@ document.getElementById('form-login')?.addEventListener('submit', async (e) => {
         currentUser.rankingPublico = !!res.data.rankingPublico;
 
         updateUIPermissions();
+        carregarCursosVitrine(); // refaz a grade de cursos com os cursos liberados deste aluno
         document.getElementById('form-login').reset();
         registrarAcessoSilencioso("Login");
 
@@ -382,6 +483,7 @@ function logout() {
     registrarAcessoSilencioso("Logout");
     currentUser = { role: 'guest', name: 'Visitante', nomeCompleto: '', email: '', token: '', cursosLiberados: [], fotoPerfil: '', rankingPublico: false };
     updateUIPermissions();
+    carregarCursosVitrine(); // volta a grade pro estado de visitante (sem cursos pagos liberados)
     navigateTo('home');
 }
 
@@ -390,6 +492,13 @@ function logout() {
 // ==========================================
 function transformarLinkDrive(url) {
     if (!url) return '';
+    // Extrai o ID do arquivo não importa o formato do link colado (view, open?id=, edit, já em /preview, etc.)
+    // IDs de arquivo do Google Drive são uma sequência longa de letras/números/traço/underline.
+    const match = url.match(/[-\w]{25,}/);
+    if (match) {
+        return `https://drive.google.com/file/d/${match[0]}/preview`;
+    }
+    // Plano B, caso não consiga extrair um ID reconhecível.
     return url.replace(/\/view.*$/, '/preview');
 }
 
@@ -415,13 +524,13 @@ async function carregarCursosVitrine() {
             } else {
                 btnText = ehPago ? "Acessar Curso" : "Acessar Grátis";
                 disabledAttr = '';
-                onclickAttr = `onclick="abrirSalaDeAula(${curso.id}, '${escapeAttr(curso.title)}', '${curso.pdfLink}', '${curso.pptLink}', ${curso.price})"`;
+                onclickAttr = `onclick="abrirSalaDeAula(${curso.id}, '${escapeAttr(curso.title)}', '${curso.pdfLink}', '${curso.pptLink}', ${curso.price}, '${curso.modoAtividade}')"`;
             }
 
             return `
                 <div class="bento-card course-card ${emBreve ? 'coming-soon' : ''}">
                     <div class="course-cover-wrap">
-                        <img src="${curso.image}" alt="${curso.title}" class="course-cover-img" onerror="this.src='https://via.placeholder.com/400x200?text=Capa+Indispon%C3%ADvel'">
+                        <img src="${curso.image}" alt="${curso.title}" class="course-cover-img" loading="lazy" onerror="this.src='https://via.placeholder.com/400x200?text=Capa+Indispon%C3%ADvel'">
                         ${emBreve ? '<div class="coming-soon-badge"><i class="ri-time-line"></i>&nbsp; Em Breve</div>' : ''}
                     </div>
                     <span class="role-badge" style="width: fit-content; margin-bottom: 10px;">${curso.category}</span>
@@ -445,7 +554,7 @@ function escapeAttr(str) {
     return String(str || '').replace(/'/g, "\\'");
 }
 
-function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price) {
+function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price, modoAtividade) {
     if (currentUser.role === 'guest') {
         alert("Você precisa fazer login para acessar a Sala de Aula.");
         openAuthPage('login');
@@ -460,6 +569,8 @@ function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price) {
 
     cursoAtual.id = idCurso;
     cursoAtual.nome = nomeCurso;
+    cursoAtual.modoAtividade = modoAtividade === 'por_aula' ? 'por_aula' : 'final';
+    aulaAtual = { ordem: null, titulo: '' };
 
     document.getElementById('sala-aula-titulo').innerText = nomeCurso;
     document.getElementById('lista-aulas').innerHTML = '<p><i class="ri-loader-4-line ri-spin"></i> Carregando aulas...</p>';
@@ -536,17 +647,160 @@ async function carregarAulasDoCurso(idCurso) {
                 document.querySelectorAll('.lesson-item').forEach(el => el.classList.remove('active'));
                 li.classList.add('active');
 
-                const embedUrl = transformarLinkDrive(aula.url);
-                document.getElementById('video-player-container').innerHTML = `<iframe src="${embedUrl}" class="drive-iframe" allow="autoplay" allowfullscreen></iframe>`;
+                renderizarPlayerAula(aula.url, aula.title, aula.ordem);
 
                 registrarAcessoSilencioso(`Assistindo: ${aula.title}`);
+                aulaAtual = { ordem: aula.ordem, titulo: aula.title };
+                limparArquivoSelecionado();
                 abrirDuvidasDaAula(aula.ordem, aula.title);
+                // Busca o status direto do servidor (não usa cache) para garantir que a aula certa mostre o status certo.
+                if (cursoAtual.modoAtividade === 'por_aula') carregarStatusAtividade(cursoAtual.id);
             };
             lista.appendChild(li);
         });
     } else {
         lista.innerHTML = '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhuma aula encontrada.</p>';
     }
+}
+
+// Toca o vídeo com um <video> nativo apontando direto para o conteúdo do arquivo no Drive.
+// Isso evita depender do player embutido do Drive (que exige cookies de terceiros e falha em
+// navegadores com proteção de rastreamento ativada). Se por qualquer motivo o vídeo direto falhar
+// (arquivo grande demais, aviso de verificação de vírus, etc.), cai automaticamente para o iframe
+// como plano B — sem precisar de nenhum serviço externo.
+/**
+ * ============================================================================
+ * PLAYER DE VÍDEO DAS AULAS
+ * ----------------------------------------------------------------------------
+ * Decide COMO tocar o vídeo de uma aula, dependendo de onde ele está hospedado.
+ * Ordem de prioridade (do mais recomendado pro mais antigo/compatibilidade):
+ *
+ *   1) YOUTUBE (não listado)  -> player oficial do YouTube, mas com uma "moldura"
+ *      visual própria da Coelhos Academy por cima (cabeçalho com a marca, borda
+ *      arredondada, sombra) pra não parecer "um vídeo do YouTube largado no site".
+ *      Não dá pra remover 100% a marca do YouTube de dentro do player embutido
+ *      (é regra deles), mas dá pra deixar bem discreta e "vestir" o restante.
+ *
+ *   2) LINK DIRETO DE ARQUIVO (ex: Cloudflare, Backblaze, servidor próprio)
+ *      -> toca direto com a tag <video> nativa do navegador, sem intermediário.
+ *
+ *   3) GOOGLE DRIVE (aulas antigas que ainda não foram migradas)
+ *      -> tenta tocar direto (mais rápido); se falhar em 4s, cai automaticamente
+ *      pro modo antigo (iframe de pré-visualização do Drive).
+ *
+ * Pra trocar de provedor de vídeo no futuro, essa é a ÚNICA função que precisa
+ * mudar — o resto do site só chama renderizarPlayerAula(url, titulo, ordem).
+ * ============================================================================
+ */
+function renderizarPlayerAula(url, tituloAula, numeroAula) {
+    const container = document.getElementById('video-player-container');
+    if (!url) return;
+
+    // --- 1) YOUTUBE -----------------------------------------------------------
+    // Reconhece qualquer formato de link do YouTube: youtu.be/ID, watch?v=ID,
+    // embed/ID ou shorts/ID. O "ID" do YouTube tem sempre 11 caracteres.
+    const idYoutube = extrairIdYoutube(url);
+    if (idYoutube) {
+        renderizarPlayerYoutube(container, idYoutube, tituloAula, numeroAula);
+        return;
+    }
+
+    // --- 2) LINK DIRETO DE ARQUIVO DE VÍDEO ------------------------------------
+    // Qualquer link que não seja do Drive nem do YouTube é tratado como um
+    // arquivo de vídeo hospedado em algum lugar (Cloudflare R2, Backblaze B2,
+    // servidor próprio, etc.). Não precisa de nenhum truque: o navegador só
+    // pede o arquivo e toca, igual uma imagem.
+    if (!url.includes('drive.google.com')) {
+        container.innerHTML = `
+            <video class="drive-iframe" controls preload="metadata" playsinline style="background:#000;">
+                <source src="${url}" type="video/mp4">
+                Seu navegador não é compatível com este player de vídeo.
+            </video>
+        `;
+        return;
+    }
+
+    // --- 3) GOOGLE DRIVE (compatibilidade com aulas antigas) -------------------
+    const idMatch = url.match(/[-\w]{25,}/); // extrai o ID do arquivo do Drive
+
+    if (!idMatch) {
+        // Não conseguiu achar um ID reconhecível: usa o link como veio, direto no iframe.
+        container.innerHTML = `<iframe src="${transformarLinkDrive(url)}" class="drive-iframe" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+        return;
+    }
+
+    const fileId = idMatch[0];
+    const videoSrc = `https://drive.google.com/uc?export=download&id=${fileId}`; // conteúdo bruto do arquivo (tenta primeiro)
+    const iframeSrc = `https://drive.google.com/file/d/${fileId}/preview`;       // player do Drive (plano B)
+
+    container.innerHTML = `
+        <div class="video-loading-overlay" id="video-loading-overlay">
+            <i class="ri-loader-4-line ri-spin"></i> Carregando vídeo...
+        </div>
+        <video id="aula-video-tag" class="drive-iframe" controls preload="metadata" playsinline style="background:#000;">
+            <source src="${videoSrc}" type="video/mp4">
+        </video>
+    `;
+
+    const videoTag = document.getElementById('aula-video-tag');
+    const overlay = document.getElementById('video-loading-overlay');
+    let jaResolveu = false; // trava pra garantir que o fallback só rode uma vez
+
+    const esconderOverlay = () => { if (overlay) overlay.style.display = 'none'; };
+
+    const usarFallbackIframe = () => {
+        if (jaResolveu) return;
+        jaResolveu = true;
+        container.innerHTML = `<iframe src="${iframeSrc}" class="drive-iframe" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+    };
+
+    videoTag.addEventListener('loadedmetadata', () => { jaResolveu = true; esconderOverlay(); });
+    videoTag.addEventListener('error', usarFallbackIframe);
+
+    // Se em 4s nada carregou (arquivo grande, bloqueio do navegador, etc.), cai pro iframe automaticamente.
+    setTimeout(() => { if (!jaResolveu) usarFallbackIframe(); }, 4000);
+}
+
+/**
+ * Extrai o ID de 11 caracteres de um link do YouTube, em qualquer formato comum:
+ *   - https://youtu.be/ID
+ *   - https://www.youtube.com/watch?v=ID
+ *   - https://www.youtube.com/embed/ID
+ *   - https://www.youtube.com/shorts/ID
+ * Retorna null se o link não for do YouTube.
+ */
+function extrairIdYoutube(url) {
+    const match = String(url || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+}
+
+/**
+ * Monta o player de YouTube "vestido" com a identidade visual da Coelhos Academy:
+ * uma moldura com cabeçalho de marca por cima do player oficial do YouTube.
+ * Usa o domínio youtube-nocookie.com (modo de privacidade avançada do próprio
+ * YouTube — não carrega cookies de rastreamento até o aluno clicar em play).
+ */
+function renderizarPlayerYoutube(container, idYoutube, tituloAula, numeroAula) {
+    const embedUrl = `https://www.youtube-nocookie.com/embed/${idYoutube}?rel=0&modestbranding=1&iv_load_policy=3&color=white&playsinline=1`;
+    const rotuloAula = numeroAula ? `Aula ${numeroAula}` : 'Aula';
+
+    container.innerHTML = `
+        <div class="video-frame-custom">
+            <div class="video-frame-header">
+                <span class="video-frame-brand"><i class="ri-play-circle-fill"></i> Coelhos <strong>Academy</strong></span>
+                <span class="video-frame-tag">${rotuloAula}${tituloAula ? ': ' + tituloAula : ''}</span>
+            </div>
+            <div class="video-frame-body">
+                <iframe
+                    src="${embedUrl}"
+                    title="${tituloAula || 'Vídeo da aula'}"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowfullscreen
+                    loading="lazy">
+                </iframe>
+            </div>
+        </div>
+    `;
 }
 
 // ==========================================
@@ -617,6 +871,10 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
     e.preventDefault();
     if (!cursoAtual.id) return;
 
+    if (cursoAtual.modoAtividade === 'por_aula' && !aulaAtual.ordem) {
+        return alert("Selecione uma aula na lista ao lado antes de enviar a atividade dela.");
+    }
+
     const inputArquivo = document.getElementById('atividade-arquivo');
     const arquivo = inputArquivo.files[0];
     if (!arquivo) return alert("Selecione um arquivo para enviar.");
@@ -642,6 +900,19 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
     progressBar.style.width = '0%';
     progressText.innerText = '0%';
 
+    // Progresso simulado: sobe suavemente até 90% enquanto aguarda o servidor, e completa ao terminar.
+    // (Usamos fetch padrão em vez de XHR com progresso real porque o Apps Script não responde
+    // corretamente ao preflight de CORS exigido para acompanhar o progresso de upload de fato.)
+    let progressoAtual = 0;
+    const intervaloProgresso = setInterval(() => {
+        if (progressoAtual < 90) {
+            progressoAtual += Math.random() * 12;
+            if (progressoAtual > 90) progressoAtual = 90;
+            progressBar.style.width = progressoAtual + '%';
+            progressText.innerText = Math.round(progressoAtual) + '%';
+        }
+    }, 250);
+
     try {
         const base64 = await arquivoParaBase64(arquivo);
         const payload = {
@@ -656,22 +927,29 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
             arquivoTipo: arquivo.type || 'application/octet-stream'
         };
 
+        if (cursoAtual.modoAtividade === 'por_aula') {
+            payload.aulaOrdem = aulaAtual.ordem;
+            payload.aulaTitulo = aulaAtual.titulo;
+        }
+
         btn.innerText = "Enviando arquivo...";
-        const res = await apiRequestComProgresso(payload, (pct) => {
-            progressBar.style.width = pct + '%';
-            progressText.innerText = pct + '%';
-        });
+        const res = await apiRequest(payload);
+
+        clearInterval(intervaloProgresso);
+        progressBar.style.width = '100%';
+        progressText.innerText = '100%';
 
         if (res.status === 'success') {
             alert("Atividade enviada com sucesso! Aguarde a correção do professor.");
             e.target.reset();
-            document.getElementById('file-drop-text').innerText = 'Clique para escolher um arquivo (PDF, Word, PNG ou JPG)';
+            limparArquivoSelecionado();
             registrarAcessoSilencioso(`Enviou atividade do curso: ${cursoAtual.nome}`);
             carregarStatusAtividade(cursoAtual.id);
         } else {
             alert(`Erro ao enviar: ${res.message}`);
         }
     } catch (err) {
+        clearInterval(intervaloProgresso);
         alert("Erro ao processar o arquivo. Tente novamente.");
     }
 
@@ -689,75 +967,97 @@ function arquivoParaBase64(arquivo) {
     });
 }
 
-// Igual a apiRequest, mas via XMLHttpRequest para expor o progresso de envio (upload) numa barra visual
-function apiRequestComProgresso(payload, onProgress) {
-    return new Promise((resolve) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', APPS_SCRIPT_URL, true);
-        xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
-
-        xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable && onProgress) {
-                const pct = Math.round((event.loaded / event.total) * 100);
-                onProgress(pct);
-            }
-        };
-
-        xhr.onload = () => {
-            try {
-                resolve(JSON.parse(xhr.responseText));
-            } catch (e) {
-                resolve({ status: 'error', message: 'Erro no servidor Apps Script.' });
-            }
-        };
-        xhr.onerror = () => resolve({ status: 'error', message: 'Falha de comunicação de rede.' });
-
-        xhr.send(JSON.stringify(payload));
-    });
-}
+let statusAtividadeCursoAtual = null; // guarda a resposta completa do backend (modo final ou por_aula)
 
 async function carregarStatusAtividade(idCurso) {
-    const container = document.getElementById('status-atividade-container');
-    const btnCert = document.getElementById('btn-certificado');
-    const formAtividade = document.getElementById('form-atividade');
-
     if (currentUser.role === 'guest') return;
 
+    const container = document.getElementById('status-atividade-container');
     container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted);"><i class="ri-loader-4-line ri-spin"></i> Verificando status...</p>`;
 
     const res = await apiRequest({ action: 'getStatusAtividade', email: currentUser.email, token: currentUser.token, courseId: idCurso });
 
-    statusAtividadeAtual = 'nao_enviada';
-    cursoAtual.cargaHoraria = (res.data && res.data.cargaHoraria) || 40;
+    statusAtividadeCursoAtual = (res.status === 'success') ? res.data : null;
+    cursoAtual.cargaHoraria = (statusAtividadeCursoAtual && statusAtividadeCursoAtual.cargaHoraria) || 40;
 
-    if (res.status === 'success' && res.data && res.data.status) {
-        statusAtividadeAtual = res.data.status; // 'pendente' | 'aprovado' | 'reprovado'
-    }
+    renderizarStatusAtividadeAtual();
+}
 
-    renderizarStatusAtividade();
+function renderizarStatusAtividadeAtual() {
+    const container = document.getElementById('status-atividade-container');
+    const btnCert = document.getElementById('btn-certificado');
+    const formAtividade = document.getElementById('form-atividade');
+    const tituloBox = document.getElementById('atividade-box-titulo');
+    const subtituloBox = document.getElementById('atividade-box-subtitulo');
+    const progressoWrap = document.getElementById('progresso-por-aula-container');
+    const progressoBar = document.getElementById('progresso-por-aula-bar');
+    const progressoTexto = document.getElementById('progresso-por-aula-texto');
 
-    function renderizarStatusAtividade() {
-        if (statusAtividadeAtual === 'pendente') {
-            container.innerHTML = `<span class="status-pill status-pendente"><i class="ri-time-line"></i> Em análise pelo professor</span>`;
-            formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
-            btnCert.disabled = true;
-            btnCert.innerHTML = `<i class="ri-time-line"></i> Aguardando correção`;
-            btnCert.classList.remove('success-btn');
-        } else if (statusAtividadeAtual === 'aprovado') {
-            container.innerHTML = `<span class="status-pill status-aprovado"><i class="ri-checkbox-circle-line"></i> Atividade aprovada</span>`;
-            btnCert.disabled = false;
-            btnCert.innerHTML = `<i class="ri-medal-line"></i> Emitir Certificado`;
-        } else if (statusAtividadeAtual === 'reprovado') {
-            container.innerHTML = `<span class="status-pill status-reprovado"><i class="ri-close-circle-line"></i> Atividade reprovada — envie novamente</span>`;
-            btnCert.disabled = true;
-            btnCert.innerHTML = `<i class="ri-lock-line"></i> Corrija e reenvie a atividade`;
-            btnCert.classList.remove('success-btn');
+    if (!container || !statusAtividadeCursoAtual) return;
+
+    if (cursoAtual.modoAtividade === 'por_aula') {
+        const { aulasTotal, aprovadasCount, statusPorAula } = statusAtividadeCursoAtual;
+
+        // Barra de progresso geral do curso
+        progressoWrap.style.display = 'block';
+        const pct = aulasTotal > 0 ? Math.round((aprovadasCount / aulasTotal) * 100) : 0;
+        progressoBar.style.width = pct + '%';
+        progressoTexto.innerText = `${aprovadasCount} de ${aulasTotal} aula(s) com atividade aprovada`;
+
+        const certificadoLiberado = aulasTotal > 0 && aprovadasCount >= aulasTotal;
+
+        if (!aulaAtual.ordem) {
+            tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade por Aula`;
+            subtituloBox.innerText = "Selecione uma aula na lista ao lado para enviar (ou ver o status da) atividade dela.";
+            container.innerHTML = '';
+            formAtividade.style.display = 'none';
         } else {
-            container.innerHTML = `<span class="status-pill status-nao-enviada"><i class="ri-file-forbid-line"></i> Nenhuma atividade enviada</span>`;
-            btnCert.disabled = true;
-            btnCert.innerHTML = `<i class="ri-lock-line"></i> Envie a atividade para liberar`;
-            btnCert.classList.remove('success-btn');
+            const statusAula = (statusPorAula && statusPorAula[String(aulaAtual.ordem).trim()]) || 'nao_enviada';
+            tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade da Aula ${aulaAtual.ordem}`;
+            subtituloBox.innerText = `Envie a atividade referente à aula "${aulaAtual.titulo}".`;
+            formAtividade.style.display = 'block';
+            statusAtividadeAtual = statusAula;
+            renderizarPillStatus(container, formAtividade, statusAula);
         }
+
+        btnCert.disabled = !certificadoLiberado;
+        btnCert.innerHTML = certificadoLiberado
+            ? `<i class="ri-medal-line"></i> Emitir Certificado`
+            : `<i class="ri-lock-line"></i> Aprove todas as aulas para liberar`;
+        if (!certificadoLiberado) btnCert.classList.remove('success-btn');
+
+    } else {
+        // Modo final (padrão): uma única atividade libera o curso inteiro
+        progressoWrap.style.display = 'none';
+        tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade Final`;
+        subtituloBox.innerText = "Envie sua atividade final para liberar o certificado deste curso.";
+        formAtividade.style.display = 'block';
+
+        statusAtividadeAtual = statusAtividadeCursoAtual.status || 'nao_enviada';
+        renderizarPillStatus(container, formAtividade, statusAtividadeAtual);
+
+        const aprovado = statusAtividadeAtual === 'aprovado';
+        btnCert.disabled = !aprovado;
+        btnCert.innerHTML = aprovado
+            ? `<i class="ri-medal-line"></i> Emitir Certificado`
+            : `<i class="ri-lock-line"></i> Envie a atividade para liberar`;
+        if (!aprovado) btnCert.classList.remove('success-btn');
+    }
+}
+
+function renderizarPillStatus(container, formAtividade, status) {
+    if (status === 'pendente') {
+        container.innerHTML = `<span class="status-pill status-pendente"><i class="ri-time-line"></i> Em análise pelo professor</span>`;
+        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
+    } else if (status === 'aprovado') {
+        container.innerHTML = `<span class="status-pill status-aprovado"><i class="ri-checkbox-circle-line"></i> Atividade aprovada</span>`;
+        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
+    } else if (status === 'reprovado') {
+        container.innerHTML = `<span class="status-pill status-reprovado"><i class="ri-close-circle-line"></i> Atividade reprovada — envie novamente</span>`;
+        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
+    } else {
+        container.innerHTML = `<span class="status-pill status-nao-enviada"><i class="ri-file-forbid-line"></i> Nenhuma atividade enviada</span>`;
+        formAtividade.querySelector('.btn-submit').innerText = 'Enviar Atividade';
     }
 }
 
@@ -765,8 +1065,8 @@ async function carregarStatusAtividade(idCurso) {
 // CERTIFICADOS
 // ==========================================
 document.getElementById('btn-certificado')?.addEventListener('click', async (e) => {
-    if (statusAtividadeAtual !== 'aprovado') return;
     if (!cursoAtual.id) return;
+    if (e.currentTarget.disabled) return;
 
     const btn = e.currentTarget;
     const originalHtml = btn.innerHTML;
@@ -880,6 +1180,9 @@ async function carregarCertificadosGlobais() {
 
 // Gera o certificado em PDF (jsPDF), paisagem, com a logo do curso
 async function gerarCertificadoPDF({ nomeAluno, nomeCurso, cargaHoraria, codigo }) {
+    // Carrega a biblioteca jsPDF agora (só na hora de emitir/baixar um certificado de verdade).
+    await carregarBibliotecaExterna(CDN_JSPDF, 'jspdf');
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -1205,18 +1508,18 @@ async function carregarAtividadesPendentesAdmin() {
         <div class="admin-activity-item">
             <div class="admin-activity-info">
                 <strong>${item.nomeAluno}</strong>
-                <span style="font-size:0.85rem; color:var(--text-muted);">${item.nomeCurso} • ${item.data}</span>
+                <span style="font-size:0.85rem; color:var(--text-muted);">${item.nomeCurso}${item.aulaOrdem ? ` • Aula ${item.aulaOrdem}${item.aulaTitulo ? ': ' + item.aulaTitulo : ''}` : ''} • ${item.data}</span>
             </div>
             <div class="admin-activity-actions">
                 <a href="${item.linkArquivo}" target="_blank" class="btn-ghost" style="padding:8px 16px; font-size:0.85rem;"><i class="ri-eye-line"></i> Ver Arquivo</a>
-                <button class="btn-outline-success" onclick="avaliarAtividade('${item.data}', '${item.email}', '${item.courseId}', 'aprovado', this)"><i class="ri-check-line"></i> Aprovar</button>
-                <button class="btn-outline-danger" onclick="avaliarAtividade('${item.data}', '${item.email}', '${item.courseId}', 'reprovado', this)"><i class="ri-close-line"></i> Reprovar</button>
+                <button class="btn-outline-success" onclick="avaliarAtividade('${item.id}', '${item.email}', '${item.courseId}', 'aprovado', this)"><i class="ri-check-line"></i> Aprovar</button>
+                <button class="btn-outline-danger" onclick="avaliarAtividade('${item.id}', '${item.email}', '${item.courseId}', 'reprovado', this)"><i class="ri-close-line"></i> Reprovar</button>
             </div>
         </div>
     `).join('');
 }
 
-async function avaliarAtividade(dataAtividade, emailAluno, courseId, decisao, btnEl) {
+async function avaliarAtividade(idAtividade, emailAluno, courseId, decisao, btnEl) {
     const item = btnEl.closest('.admin-activity-item');
     item.style.opacity = '0.5';
     item.style.pointerEvents = 'none';
@@ -1225,7 +1528,7 @@ async function avaliarAtividade(dataAtividade, emailAluno, courseId, decisao, bt
         action: 'avaliarAtividade',
         email: currentUser.email,
         token: currentUser.token,
-        dataAtividade, emailAluno, courseId, decisao
+        idAtividade, emailAluno, courseId, decisao
     });
 
     if (res.status === 'success') {
@@ -1266,13 +1569,13 @@ async function carregarSolicitacoesCursoAdmin() {
                 <span style="font-size:0.85rem; color:var(--text-muted);">${item.nomeCurso} • ${item.email} • ${item.data}</span>
             </div>
             <div class="admin-activity-actions">
-                <button class="btn-outline-success" onclick="liberarAcessoCursoAdmin('${item.data}', '${item.email}', '${item.courseId}', this)"><i class="ri-check-line"></i> Liberar Acesso</button>
+                <button class="btn-outline-success" onclick="liberarAcessoCursoAdmin('${item.id}', '${item.email}', '${item.courseId}', this)"><i class="ri-check-line"></i> Liberar Acesso</button>
             </div>
         </div>
     `).join('');
 }
 
-async function liberarAcessoCursoAdmin(dataSolicitacao, emailAluno, courseId, btnEl) {
+async function liberarAcessoCursoAdmin(idSolicitacao, emailAluno, courseId, btnEl) {
     const item = btnEl.closest('.admin-activity-item');
     item.style.opacity = '0.5';
     item.style.pointerEvents = 'none';
@@ -1281,7 +1584,7 @@ async function liberarAcessoCursoAdmin(dataSolicitacao, emailAluno, courseId, bt
         action: 'liberarAcessoCurso',
         email: currentUser.email,
         token: currentUser.token,
-        emailAluno, courseId, dataSolicitacao
+        emailAluno, courseId, idSolicitacao
     });
 
     if (res.status === 'success') {
@@ -1293,6 +1596,36 @@ async function liberarAcessoCursoAdmin(dataSolicitacao, emailAluno, courseId, bt
         item.style.pointerEvents = 'auto';
     }
 }
+
+document.getElementById('form-revogar-acesso')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const emailAluno = document.getElementById('revogar-email-aluno').value.trim();
+    const courseId = document.getElementById('revogar-course-id').value.trim();
+
+    if (!confirm(`Confirma revogar o acesso do curso ${courseId} para ${emailAluno}?`)) return;
+
+    const btn = e.target.querySelector('.btn-outline-danger');
+    const originalText = btn.innerText;
+    btn.innerText = "Revogando...";
+    btn.disabled = true;
+
+    const res = await apiRequest({
+        action: 'revogarAcessoCurso',
+        email: currentUser.email,
+        token: currentUser.token,
+        emailAluno, courseId
+    });
+
+    if (res.status === 'success') {
+        alert("Acesso revogado com sucesso.");
+        e.target.reset();
+    } else {
+        alert(`Erro: ${res.message}`);
+    }
+
+    btn.innerText = originalText;
+    btn.disabled = false;
+});
 
 // ==========================================
 // RECUPERAÇÃO DE ACESSO (SELF-SERVICE)
@@ -1374,7 +1707,7 @@ async function carregarAnuncios() {
     }
 
     const htmlAnuncios = res.data.map(anuncio =>
-        `<img src="${anuncio.imagem}" alt="Anúncio" onclick="window.open('${anuncio.link}', '_blank')">`
+        `<img src="${anuncio.imagem}" alt="Anúncio" loading="lazy" onclick="window.open('${anuncio.link}', '_blank')">`
     ).join('');
 
     slots.forEach(slot => { slot.innerHTML = htmlAnuncios; });
@@ -1574,7 +1907,7 @@ async function carregarBlog() {
 
     container.innerHTML = res.data.map(artigo => `
         <div class="bento-card course-card hover-scale" style="cursor:pointer;" onclick="abrirArtigo(${artigo.id})">
-            ${artigo.capa ? `<img src="${artigo.capa}" alt="${artigo.titulo}" class="course-cover-img">` : ''}
+            ${artigo.capa ? `<img src="${artigo.capa}" alt="${artigo.titulo}" class="course-cover-img" loading="lazy">` : ''}
             <span class="role-badge" style="width: fit-content; margin: 10px 0;">${artigo.data || ''}</span>
             <h3>${artigo.titulo}</h3>
             <p>${artigo.resumo}</p>
@@ -1617,7 +1950,14 @@ let chartAlunosSemana = null;
 let chartCursosProcurados = null;
 
 async function carregarDashboardAdmin() {
-    if (currentUser.role !== 'admin' || typeof Chart === 'undefined') return;
+    if (currentUser.role !== 'admin') return;
+
+    // Carrega a biblioteca Chart.js agora (só quando o admin realmente abre o dashboard).
+    try {
+        await carregarBibliotecaExterna(CDN_CHARTJS, 'Chart');
+    } catch (e) {
+        return; // sem a lib, não dá pra desenhar os gráficos — os cartões de KPI acima continuam funcionando normalmente
+    }
 
     const res = await apiRequest({ action: 'getDashboardAdmin', email: currentUser.email, token: currentUser.token });
     if (res.status !== 'success') return;
@@ -1857,13 +2197,13 @@ async function carregarDuvidasPendentesAdmin() {
             </div>
             <div style="display:flex; gap:8px; margin-top:8px;">
                 <input type="text" id="resposta-duvida-${idx}" placeholder="Escreva a resposta..." style="margin-bottom:0;">
-                <button class="btn-outline-success" style="white-space:nowrap;" onclick="responderDuvidaAdmin('${item.data}', '${item.email}', ${idx}, this)">Responder</button>
+                <button class="btn-outline-success" style="white-space:nowrap;" onclick="responderDuvidaAdmin('${item.id}', '${item.email}', ${idx}, this)">Responder</button>
             </div>
         </div>
     `).join('');
 }
 
-async function responderDuvidaAdmin(dataDuvida, emailAluno, idx, btnEl) {
+async function responderDuvidaAdmin(idDuvida, emailAluno, idx, btnEl) {
     const input = document.getElementById(`resposta-duvida-${idx}`);
     const resposta = input.value.trim();
     if (!resposta) return alert("Escreva uma resposta antes de enviar.");
@@ -1875,7 +2215,7 @@ async function responderDuvidaAdmin(dataDuvida, emailAluno, idx, btnEl) {
         action: 'responderDuvida',
         email: currentUser.email,
         token: currentUser.token,
-        dataDuvida, emailAluno, resposta
+        idDuvida, emailAluno, resposta
     });
 
     if (res.status === 'success') {
