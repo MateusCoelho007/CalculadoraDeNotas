@@ -250,20 +250,53 @@ video.drive-iframe { object-fit: contain; background: #000; }
     width: 100%; height: 100%; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;
     box-shadow: 0 15px 40px var(--shadow-color); border: 1px solid var(--border-color); background: #000;
 }
+/* Cabeçalho bem fino — só o suficiente pra identificar a marca e a aula, sem tomar espaço do vídeo */
 .video-frame-header {
-    background: var(--gradient-brand); padding: 10px 18px; display: flex; align-items: center; justify-content: space-between;
-    gap: 10px; flex-shrink: 0; flex-wrap: wrap;
+    background: var(--gradient-brand); padding: 5px 14px; display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; flex-shrink: 0; flex-wrap: nowrap; min-height: 0;
 }
 .video-frame-brand {
-    color: #fff; font-weight: 700; font-size: 0.85rem; font-family: 'Space Grotesk', sans-serif;
-    letter-spacing: 0.02em; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    color: #fff; font-weight: 700; font-size: 0.68rem; font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.02em; display: flex; align-items: center; gap: 5px; white-space: nowrap; opacity: 0.92;
 }
+.video-frame-brand i { font-size: 0.85rem; }
 .video-frame-tag {
-    color: rgba(255,255,255,0.85); font-size: 0.78rem; font-family: 'JetBrains Mono', monospace;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;
+    color: rgba(255,255,255,0.8); font-size: 0.66rem; font-family: 'JetBrains Mono', monospace;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%;
 }
-.video-frame-body { flex: 1; position: relative; min-height: 0; }
-.video-frame-body iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+.video-frame-body { flex: 1; position: relative; min-height: 0; background: #000; }
+.video-frame-body iframe, .video-frame-body #yt-player-mount, .video-frame-body #yt-player-mount iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+}
+
+/* Capa própria mostrada ANTES do vídeo começar (thumbnail + botão de play com o gradiente da marca) */
+.custom-video-overlay {
+    position: absolute; inset: 0; background-size: cover; background-position: center;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.custom-video-overlay::before { content: ''; position: absolute; inset: 0; background: rgba(9,12,21,0.35); }
+.custom-play-btn {
+    position: relative; z-index: 1; width: 76px; height: 76px; border-radius: 50%; border: none;
+    background: var(--gradient-brand); color: #fff; font-size: 1.9rem; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 10px 30px var(--glow); transition: transform 0.2s;
+}
+.custom-play-btn:hover { transform: scale(1.08); }
+.custom-play-btn i { margin-left: 4px; } /* ícone de play óptico centralizado */
+
+/* Barra de controles customizada (substitui 100% os controles nativos do YouTube) */
+.custom-video-controls {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 8px 14px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.85), rgba(0,0,0,0));
+    display: flex; align-items: center; gap: 10px;
+}
+.custom-ctrl-btn {
+    background: none; border: none; color: #fff; font-size: 1.15rem; cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; padding: 4px; opacity: 0.92;
+}
+.custom-ctrl-btn:hover { opacity: 1; }
+.custom-time { color: rgba(255,255,255,0.85); font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+.custom-progress-track { flex: 1; height: 5px; background: rgba(255,255,255,0.25); border-radius: 10px; cursor: pointer; }
+.custom-progress-fill { height: 100%; width: 0%; background: var(--gradient-brand); border-radius: 10px; }
 .video-loading-overlay {
     position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 0.6rem;
     color: var(--text-muted); font-size: 0.95rem; background: #000; border-radius: 20px; pointer-events: none;
