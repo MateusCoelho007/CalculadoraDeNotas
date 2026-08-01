@@ -417,6 +417,13 @@ function logout() {
 // ==========================================
 function transformarLinkDrive(url) {
     if (!url) return '';
+    // Extrai o ID do arquivo não importa o formato do link colado (view, open?id=, edit, já em /preview, etc.)
+    // IDs de arquivo do Google Drive são uma sequência longa de letras/números/traço/underline.
+    const match = url.match(/[-\w]{25,}/);
+    if (match) {
+        return `https://drive.google.com/file/d/${match[0]}/preview`;
+    }
+    // Plano B, caso não consiga extrair um ID reconhecível.
     return url.replace(/\/view.*$/, '/preview');
 }
 
@@ -566,7 +573,14 @@ async function carregarAulasDoCurso(idCurso) {
                 li.classList.add('active');
 
                 const embedUrl = transformarLinkDrive(aula.url);
-                document.getElementById('video-player-container').innerHTML = `<iframe src="${embedUrl}" class="drive-iframe" allow="autoplay" allowfullscreen></iframe>`;
+                document.getElementById('video-player-container').innerHTML = `<iframe src="${embedUrl}" class="drive-iframe" allow="autoplay; fullscreen; encrypted-media" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+
+                const fallback = document.getElementById('video-fallback-link');
+                const fallbackHref = document.getElementById('video-fallback-href');
+                if (fallback && fallbackHref) {
+                    fallbackHref.href = aula.url;
+                    fallback.style.display = 'block';
+                }
 
                 registrarAcessoSilencioso(`Assistindo: ${aula.title}`);
                 aulaAtual = { ordem: aula.ordem, titulo: aula.title };
