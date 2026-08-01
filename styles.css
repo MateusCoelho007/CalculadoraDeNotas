@@ -125,27 +125,11 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 2rem; font-size: 0.9rem; color: var(--text-muted); cursor: pointer; }
 .checkbox-group input { width: auto; accent-color: var(--accent); transform: scale(1.2); margin-bottom: 0; }
 .file-drop {
-    border: 1.5px dashed var(--border-color); border-radius: 14px; padding: 1.2rem;
+    border: 1.5px dashed var(--border-color); border-radius: 14px; padding: 1.5rem; text-align: center;
     cursor: pointer; transition: all 0.2s; color: var(--text-muted); font-size: 0.9rem;
-    box-sizing: border-box; width: 100%; overflow: hidden;
 }
 .file-drop:hover { border-color: var(--accent); color: var(--accent); background: var(--card-bg); }
-.file-drop.tem-arquivo { border-style: solid; border-color: var(--accent); background: var(--glow); padding: 0.8rem 1rem; }
-.file-drop-vazio { display: flex; flex-direction: column; align-items: center; text-align: center; }
-.file-drop-vazio i { font-size: 1.8rem; display: block; margin-bottom: 0.4rem; color: var(--accent); }
-.file-drop-selecionado { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; }
-.file-drop-selecionado > i { font-size: 1.6rem; color: var(--accent); flex-shrink: 0; }
-.file-drop-info { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left; }
-.file-drop-nome {
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-    font-weight: 600; color: var(--text-main); font-size: 0.85rem;
-}
-.file-drop-tamanho { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
-.file-drop-remover {
-    background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;
-    flex-shrink: 0; padding: 4px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-}
-.file-drop-remover:hover { color: #ef4444; background: rgba(239,68,68,0.12); }
+.file-drop i { font-size: 1.8rem; display: block; margin-bottom: 0.4rem; color: var(--accent); }
 
 /* --- 5. LÓGICA DE VIEWS (SPA) --- */
 .view-section { display: none; padding: 3rem; flex-grow: 1; animation: fadeIn 0.45s cubic-bezier(.2,.8,.2,1) forwards; }
@@ -221,11 +205,6 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .lesson-item.active i { color: white; }
 
 .drive-iframe { width: 100%; height: 100%; border: none; border-radius: 20px; box-shadow: 0 15px 40px var(--shadow-color); }
-video.drive-iframe { object-fit: contain; background: #000; }
-.video-loading-overlay {
-    position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 0.6rem;
-    color: var(--text-muted); font-size: 0.95rem; background: #000; border-radius: 20px; pointer-events: none;
-}
 .review-box { background: var(--card-bg); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border-color); height: 100%; }
 
 /* Atividade final (envio de arquivo) */
@@ -306,23 +285,6 @@ video.drive-iframe { object-fit: contain; background: #000; }
     padding: 12px 16px; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 0.95rem; text-align: left; transition: all 0.2s;
 }
 .sobrenome-btn:hover { border-color: var(--accent); background: var(--glow); color: var(--accent); }
-
-/* Skeleton loading (efeito shimmer enquanto os dados carregam) */
-.skeleton-card {
-    background: var(--card-bg); padding: 2rem; border-radius: 22px; border: 1px solid var(--border-color);
-    display: flex; flex-direction: column; gap: 0.7rem;
-}
-.skeleton-block {
-    border-radius: 8px; background: linear-gradient(90deg, var(--border-color) 25%, var(--card-bg-hover) 50%, var(--border-color) 75%);
-    background-size: 200% 100%; animation: skeleton-shimmer 1.6s ease-in-out infinite;
-}
-.skeleton-image { height: 160px; border-radius: 16px; margin-bottom: 0.5rem; }
-.skeleton-badge { height: 20px; width: 90px; border-radius: 20px; }
-.skeleton-title { height: 22px; width: 85%; margin-top: 0.3rem; }
-.skeleton-text { height: 13px; width: 100%; }
-.skeleton-button { height: 44px; border-radius: 12px; margin-top: 0.8rem; }
-@keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-@media (prefers-reduced-motion: reduce) { .skeleton-block { animation: none; } }
 
 /* Sino de notificações */
 .notif-bell-wrap { position: relative; }
@@ -412,18 +374,6 @@ video.drive-iframe { object-fit: contain; background: #000; }
     .sidebar.menu-aberto .sidebar-menu { display: flex; }
     .nav-links { margin-top: 0; }
     .user-profile { margin-top: 1rem; }
-    .view-section { padding: 1.2rem; }
+    .view-section { padding: 1.5rem; }
     .dificuldade-botoes { grid-template-columns: repeat(2, 1fr); }
-
-    .topbar { padding: 0.9rem 1.2rem; }
-    .date-display { font-size: 0.75rem; }
-    .topbar-right { gap: 0.5rem; }
-
-    /* Cards com grid-column: span N (inline) voltam a ocupar a linha toda em telas pequenas */
-    .bento-card[style*="grid-column"] { grid-column: 1 / -1 !important; }
-
-    .notif-dropdown { width: calc(100vw - 2.4rem); right: -0.5rem; }
-    .auth-box { padding: 2rem 1.5rem; }
-    .course-sidebar { padding: 1.2rem; }
-    .whatsapp-float { width: 48px; height: 48px; font-size: 1.3rem; }
 }
