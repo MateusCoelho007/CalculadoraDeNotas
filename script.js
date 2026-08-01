@@ -828,77 +828,89 @@ function renderizarPlayerYoutube(container, idYoutube, tituloAula, numeroAula) {
     }
     playerYoutubeAtual = null;
 
-    const rotuloAula = numeroAula ? `Aula ${numeroAula}` : 'Aula';
     const thumbnail = `https://img.youtube.com/vi/${idYoutube}/hqdefault.jpg`;
 
-    // Monta a estrutura: cabeçalho fino de marca + capa própria (clicável) + barra de controles customizada.
+    // IMPORTANTE sobre a "capa" (.custom-video-overlay): ela não aparece só no início.
+    // O YouTube mostra a própria marca dele (logo, compartilhar, assistir mais tarde)
+    // automaticamente sempre que o vídeo fica pausado — e isso roda DENTRO do iframe
+    // deles, então não tem CSS que alcance pra esconder. A solução é: toda vez que o
+    // vídeo pausa, a gente MOSTRA essa capa de novo por cima de tudo, escondendo
+    // completamente o que está por baixo. Por isso "pausar" e "mostrar a capa" andam
+    // sempre juntos nas funções abaixo.
     container.innerHTML = `
         <div class="video-frame-custom">
-            <div class="video-frame-header">
-                <span class="video-frame-brand"><i class="ri-graduation-cap-fill"></i> Coelhos Academy</span>
-                <span class="video-frame-tag">${rotuloAula}${tituloAula ? ': ' + tituloAula : ''}</span>
+            <div id="yt-player-mount"></div>
+
+            <div class="custom-video-overlay" id="custom-video-overlay" style="background-image:url('${thumbnail}');">
+                <button class="custom-play-btn" id="custom-play-btn" aria-label="Reproduzir vídeo"><i class="ri-play-fill"></i></button>
             </div>
-            <div class="video-frame-body">
-                <div id="yt-player-mount"></div>
 
-                <div class="custom-video-overlay" id="custom-video-overlay" style="background-image:url('${thumbnail}');">
-                    <button class="custom-play-btn" id="custom-play-btn" aria-label="Reproduzir vídeo"><i class="ri-play-fill"></i></button>
+            <div class="custom-video-controls" id="custom-video-controls" style="display:none;">
+                <button class="custom-ctrl-btn" id="custom-playpause-btn" aria-label="Pausar"><i class="ri-pause-fill"></i></button>
+                <span class="custom-time" id="custom-time-current">0:00</span>
+                <div class="custom-progress-track" id="custom-progress-track">
+                    <div class="custom-progress-fill" id="custom-progress-fill"></div>
                 </div>
-
-                <div class="custom-video-controls" id="custom-video-controls" style="display:none;">
-                    <button class="custom-ctrl-btn" id="custom-playpause-btn" aria-label="Pausar ou reproduzir"><i class="ri-pause-fill"></i></button>
-                    <span class="custom-time" id="custom-time-current">0:00</span>
-                    <div class="custom-progress-track" id="custom-progress-track">
-                        <div class="custom-progress-fill" id="custom-progress-fill"></div>
-                    </div>
-                    <span class="custom-time" id="custom-time-duration">0:00</span>
-                    <button class="custom-ctrl-btn" id="custom-mute-btn" aria-label="Ativar ou desativar o som"><i class="ri-volume-up-line"></i></button>
-                    <button class="custom-ctrl-btn" id="custom-fullscreen-btn" aria-label="Tela cheia"><i class="ri-fullscreen-line"></i></button>
-                </div>
+                <span class="custom-time" id="custom-time-duration">0:00</span>
+                <button class="custom-ctrl-btn" id="custom-mute-btn" aria-label="Ativar ou desativar o som"><i class="ri-volume-up-line"></i></button>
+                <button class="custom-ctrl-btn" id="custom-fullscreen-btn" aria-label="Tela cheia"><i class="ri-fullscreen-line"></i></button>
             </div>
         </div>
     `;
 
-    // Só clicando em play é que a gente carrega a API e cria o player de verdade —
-    // até lá, o YouTube nem sabe que essa página existe (mais leve e mais privado).
+    const overlay = document.getElementById('custom-video-overlay');
+    const controles = document.getElementById('custom-video-controls');
+
+    // Mostra a reprodução: esconde a capa, mostra a barra de controles, dá play.
+    const mostrarReproducao = () => {
+        overlay.style.display = 'none';
+        controles.style.display = 'flex';
+        if (playerYoutubeAtual) playerYoutubeAtual.playVideo();
+    };
+
+    // Volta pro estado "pausado": mostra a capa por cima de TUDO (esconde qualquer
+    // marca do YouTube que esteja aparecendo por baixo) e esconde a barra de controles.
+    const mostrarPausado = () => {
+        if (playerYoutubeAtual) playerYoutubeAtual.pauseVideo();
+        overlay.style.display = 'flex';
+        controles.style.display = 'none';
+    };
+
     document.getElementById('custom-play-btn').addEventListener('click', async () => {
-        await carregarYoutubeIframeAPI();
+        // Primeira vez: ainda não existe player, precisa criar.
+        if (!playerYoutubeAtual) {
+            await carregarYoutubeIframeAPI();
+            if (!document.getElementById('yt-player-mount')) return; // aula trocou enquanto a API carregava
 
-        // Se o aluno já trocou de aula enquanto a API carregava, não faz nada (evita bug de troca rápida).
-        if (!document.getElementById('yt-player-mount')) return;
-
-        playerYoutubeAtual = new YT.Player('yt-player-mount', {
-            videoId: idYoutube,
-            playerVars: {
-                controls: 0,        // esconde TODOS os controles nativos do YouTube
-                modestbranding: 1,  // reduz a marca do YouTube ao mínimo permitido por eles
-                rel: 0,             // não sugere vídeos de outros canais ao pausar
-                iv_load_policy: 3,  // esconde anotações/cards
-                cc_load_policy: 0,  // não força legendas ligadas
-                disablekb: 1,       // desliga atalhos de teclado do player nativo (usamos os nossos controles)
-                fs: 0,              // esconde o botão de tela cheia deles (o nosso substitui)
-                playsinline: 1,
-                autoplay: 1,
-                origin: window.location.origin
-            },
-            events: {
-                onReady: (evento) => {
-                    document.getElementById('custom-video-overlay').style.display = 'none';
-                    document.getElementById('custom-video-controls').style.display = 'flex';
-                    evento.target.playVideo();
-                    configurarControlesCustomizadosYoutube(evento.target);
+            playerYoutubeAtual = new YT.Player('yt-player-mount', {
+                videoId: idYoutube,
+                playerVars: {
+                    controls: 0, modestbranding: 1, rel: 0, iv_load_policy: 3, cc_load_policy: 0,
+                    disablekb: 1, fs: 0, playsinline: 1, autoplay: 1, origin: window.location.origin
+                },
+                events: {
+                    onReady: (evento) => {
+                        mostrarReproducao();
+                        configurarControlesCustomizadosYoutube(evento.target, mostrarPausado);
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            // Já existe (o aluno só pausou e apertou play de novo): não recria, só retoma.
+            mostrarReproducao();
+        }
     });
 }
 
 /**
  * Liga os botões da barra de controles customizada (play/pause, progresso,
  * mudo, tela cheia) ao player de YouTube de verdade, e mantém a barra de
- * progresso e o relógio atualizados a cada meio segundo.
+ * progresso e o relógio atualizados em tempo real durante a reprodução.
+ *
+ * @param player          instância do YT.Player já pronta (evento.target do onReady)
+ * @param mostrarPausado  função que pausa E cobre a tela com a capa própria (ver renderizarPlayerYoutube)
  */
-function configurarControlesCustomizadosYoutube(player) {
+function configurarControlesCustomizadosYoutube(player, mostrarPausado) {
     const btnPlayPause = document.getElementById('custom-playpause-btn');
     const trilhaProgresso = document.getElementById('custom-progress-track');
     const preenchimentoProgresso = document.getElementById('custom-progress-fill');
@@ -908,15 +920,15 @@ function configurarControlesCustomizadosYoutube(player) {
     const btnTelaCheia = document.getElementById('custom-fullscreen-btn');
     if (!btnPlayPause) return; // a aula já foi trocada antes disso rodar
 
-    btnPlayPause.onclick = () => {
-        if (player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
-        else player.playVideo();
-    };
+    // O botão de play/pause da barra SEMPRE pausa cobrindo a tela (nunca deixa o
+    // vídeo pausado "exposto", que é justamente onde a marca do YouTube aparece).
+    btnPlayPause.onclick = mostrarPausado;
 
-    // Clicar em qualquer ponto da trilha "pula" o vídeo pra aquele ponto (seek).
+    // Clicar em qualquer ponto da trilha "pula" o vídeo pra aquele ponto (seek) —
+    // funciona com o vídeo tocando, sem precisar pausar.
     trilhaProgresso.onclick = (evento) => {
         const retangulo = trilhaProgresso.getBoundingClientRect();
-        const porcentagem = (evento.clientX - retangulo.left) / retangulo.width;
+        const porcentagem = Math.min(1, Math.max(0, (evento.clientX - retangulo.left) / retangulo.width));
         const duracao = player.getDuration();
         if (duracao) player.seekTo(duracao * porcentagem, true);
     };
@@ -936,21 +948,23 @@ function configurarControlesCustomizadosYoutube(player) {
         if (moldura && moldura.requestFullscreen) moldura.requestFullscreen();
     };
 
-    // Atualiza a barra de progresso, o relógio e o ícone de play/pause a cada 500ms.
+    // Se o vídeo chegar ao fim sozinho, o loop abaixo detecta e cobre a tela de novo.
+    // Atualiza a barra de progresso, o relógio e detecta o fim do vídeo a cada 500ms.
     const intervaloAtualizacao = setInterval(() => {
         // Se os elementos sumiram da tela (o aluno trocou de aula), para o loop pra não gastar memória à toa.
         if (!document.getElementById('custom-progress-fill')) {
             clearInterval(intervaloAtualizacao);
             return;
         }
+        const estado = player.getPlayerState();
         const atual = player.getCurrentTime() || 0;
         const duracao = player.getDuration() || 0;
         if (duracao > 0) preenchimentoProgresso.style.width = ((atual / duracao) * 100) + '%';
         tempoAtualEl.innerText = formatarTempoVideo(atual);
         tempoTotalEl.innerText = formatarTempoVideo(duracao);
-        btnPlayPause.innerHTML = (player.getPlayerState() === YT.PlayerState.PLAYING)
-            ? '<i class="ri-pause-fill"></i>'
-            : '<i class="ri-play-fill"></i>';
+
+        // YT.PlayerState.ENDED === 0 — quando o vídeo termina sozinho, cobre a tela de novo.
+        if (estado === 0) mostrarPausado();
     }, 500);
 }
 
