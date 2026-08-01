@@ -573,14 +573,7 @@ async function carregarAulasDoCurso(idCurso) {
                 li.classList.add('active');
 
                 const embedUrl = transformarLinkDrive(aula.url);
-                document.getElementById('video-player-container').innerHTML = `<iframe src="${embedUrl}" class="drive-iframe" allow="autoplay; fullscreen; encrypted-media" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>`;
-
-                const fallback = document.getElementById('video-fallback-link');
-                const fallbackHref = document.getElementById('video-fallback-href');
-                if (fallback && fallbackHref) {
-                    fallbackHref.href = aula.url;
-                    fallback.style.display = 'block';
-                }
+                document.getElementById('video-player-container').innerHTML = `<iframe src="${embedUrl}" class="drive-iframe" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
 
                 registrarAcessoSilencioso(`Assistindo: ${aula.title}`);
                 aulaAtual = { ordem: aula.ordem, titulo: aula.title };
