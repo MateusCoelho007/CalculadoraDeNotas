@@ -572,8 +572,7 @@ async function carregarAulasDoCurso(idCurso) {
                 document.querySelectorAll('.lesson-item').forEach(el => el.classList.remove('active'));
                 li.classList.add('active');
 
-                const embedUrl = transformarLinkDrive(aula.url);
-                document.getElementById('video-player-container').innerHTML = `<iframe src="${embedUrl}" class="drive-iframe" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+                renderizarPlayerAula(aula.url);
 
                 registrarAcessoSilencioso(`Assistindo: ${aula.title}`);
                 aulaAtual = { ordem: aula.ordem, titulo: aula.title };
@@ -587,6 +586,52 @@ async function carregarAulasDoCurso(idCurso) {
     } else {
         lista.innerHTML = '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhuma aula encontrada.</p>';
     }
+}
+
+// Toca o vídeo com um <video> nativo apontando direto para o conteúdo do arquivo no Drive.
+// Isso evita depender do player embutido do Drive (que exige cookies de terceiros e falha em
+// navegadores com proteção de rastreamento ativada). Se por qualquer motivo o vídeo direto falhar
+// (arquivo grande demais, aviso de verificação de vírus, etc.), cai automaticamente para o iframe
+// como plano B — sem precisar de nenhum serviço externo.
+function renderizarPlayerAula(url) {
+    const container = document.getElementById('video-player-container');
+    const idMatch = (url || '').match(/[-\w]{25,}/);
+
+    if (!idMatch) {
+        container.innerHTML = `<iframe src="${transformarLinkDrive(url)}" class="drive-iframe" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+        return;
+    }
+
+    const fileId = idMatch[0];
+    const videoSrc = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    const iframeSrc = `https://drive.google.com/file/d/${fileId}/preview`;
+
+    container.innerHTML = `
+        <div class="video-loading-overlay" id="video-loading-overlay">
+            <i class="ri-loader-4-line ri-spin"></i> Carregando vídeo...
+        </div>
+        <video id="aula-video-tag" class="drive-iframe" controls preload="metadata" playsinline style="background:#000;">
+            <source src="${videoSrc}" type="video/mp4">
+        </video>
+    `;
+
+    const videoTag = document.getElementById('aula-video-tag');
+    const overlay = document.getElementById('video-loading-overlay');
+    let jaResolveu = false;
+
+    const esconderOverlay = () => { if (overlay) overlay.style.display = 'none'; };
+
+    const usarFallbackIframe = () => {
+        if (jaResolveu) return;
+        jaResolveu = true;
+        container.innerHTML = `<iframe src="${iframeSrc}" class="drive-iframe" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+    };
+
+    videoTag.addEventListener('loadedmetadata', () => { jaResolveu = true; esconderOverlay(); });
+    videoTag.addEventListener('error', usarFallbackIframe);
+
+    // Se em 4s nada carregou (arquivo grande, bloqueio, etc.), cai pro iframe automaticamente.
+    setTimeout(() => { if (!jaResolveu) usarFallbackIframe(); }, 4000);
 }
 
 // ==========================================
@@ -1379,6 +1424,36 @@ async function liberarAcessoCursoAdmin(idSolicitacao, emailAluno, courseId, btnE
         item.style.pointerEvents = 'auto';
     }
 }
+
+document.getElementById('form-revogar-acesso')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const emailAluno = document.getElementById('revogar-email-aluno').value.trim();
+    const courseId = document.getElementById('revogar-course-id').value.trim();
+
+    if (!confirm(`Confirma revogar o acesso do curso ${courseId} para ${emailAluno}?`)) return;
+
+    const btn = e.target.querySelector('.btn-outline-danger');
+    const originalText = btn.innerText;
+    btn.innerText = "Revogando...";
+    btn.disabled = true;
+
+    const res = await apiRequest({
+        action: 'revogarAcessoCurso',
+        email: currentUser.email,
+        token: currentUser.token,
+        emailAluno, courseId
+    });
+
+    if (res.status === 'success') {
+        alert("Acesso revogado com sucesso.");
+        e.target.reset();
+    } else {
+        alert(`Erro: ${res.message}`);
+    }
+
+    btn.innerText = originalText;
+    btn.disabled = false;
+});
 
 // ==========================================
 // RECUPERAÇÃO DE ACESSO (SELF-SERVICE)
