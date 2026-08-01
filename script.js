@@ -26,8 +26,7 @@ let currentUser = {
 let cursoAtual = {
     id: null,
     nome: "",
-    cargaHoraria: 40,
-    modoAtividade: 'final'
+    cargaHoraria: 40
 };
 
 let aulaAtual = { ordem: null, titulo: '' };
@@ -62,42 +61,16 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.value = formatarWhatsApp(e.target.value);
     });
 
-    // Chip do arquivo escolhido no envio de atividade
+    // Nome do arquivo escolhido no envio de atividade
     document.getElementById('atividade-arquivo')?.addEventListener('change', (e) => {
-        const arquivo = e.target.files && e.target.files[0];
-        if (arquivo) mostrarArquivoSelecionado(arquivo);
-        else limparArquivoSelecionado();
-    });
-
-    document.getElementById('file-drop-remover')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        limparArquivoSelecionado();
+        const label = document.getElementById('file-drop-text');
+        if (e.target.files && e.target.files[0]) {
+            label.innerText = e.target.files[0].name;
+        } else {
+            label.innerText = 'Clique para escolher um arquivo (PDF, Word, PNG ou JPG)';
+        }
     });
 });
-
-function formatarTamanhoArquivo(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function mostrarArquivoSelecionado(arquivo) {
-    document.getElementById('file-drop-vazio').style.display = 'none';
-    document.getElementById('file-drop-selecionado').style.display = 'flex';
-    document.getElementById('file-drop-label').classList.add('tem-arquivo');
-    document.getElementById('file-drop-nome').innerText = arquivo.name;
-    document.getElementById('file-drop-nome').title = arquivo.name;
-    document.getElementById('file-drop-tamanho').innerText = formatarTamanhoArquivo(arquivo.size);
-}
-
-function limparArquivoSelecionado() {
-    const input = document.getElementById('atividade-arquivo');
-    if (input) input.value = '';
-    document.getElementById('file-drop-vazio').style.display = 'flex';
-    document.getElementById('file-drop-selecionado').style.display = 'none';
-    document.getElementById('file-drop-label').classList.remove('tem-arquivo');
-}
 
 // ==========================================
 // AVISO DE CAPS LOCK
@@ -417,13 +390,6 @@ function logout() {
 // ==========================================
 function transformarLinkDrive(url) {
     if (!url) return '';
-    // Extrai o ID do arquivo não importa o formato do link colado (view, open?id=, edit, já em /preview, etc.)
-    // IDs de arquivo do Google Drive são uma sequência longa de letras/números/traço/underline.
-    const match = url.match(/[-\w]{25,}/);
-    if (match) {
-        return `https://drive.google.com/file/d/${match[0]}/preview`;
-    }
-    // Plano B, caso não consiga extrair um ID reconhecível.
     return url.replace(/\/view.*$/, '/preview');
 }
 
@@ -449,7 +415,7 @@ async function carregarCursosVitrine() {
             } else {
                 btnText = ehPago ? "Acessar Curso" : "Acessar Grátis";
                 disabledAttr = '';
-                onclickAttr = `onclick="abrirSalaDeAula(${curso.id}, '${escapeAttr(curso.title)}', '${curso.pdfLink}', '${curso.pptLink}', ${curso.price}, '${curso.modoAtividade}')"`;
+                onclickAttr = `onclick="abrirSalaDeAula(${curso.id}, '${escapeAttr(curso.title)}', '${curso.pdfLink}', '${curso.pptLink}', ${curso.price})"`;
             }
 
             return `
@@ -479,7 +445,7 @@ function escapeAttr(str) {
     return String(str || '').replace(/'/g, "\\'");
 }
 
-function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price, modoAtividade) {
+function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price) {
     if (currentUser.role === 'guest') {
         alert("Você precisa fazer login para acessar a Sala de Aula.");
         openAuthPage('login');
@@ -494,8 +460,6 @@ function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price, modoAtivid
 
     cursoAtual.id = idCurso;
     cursoAtual.nome = nomeCurso;
-    cursoAtual.modoAtividade = modoAtividade === 'por_aula' ? 'por_aula' : 'final';
-    aulaAtual = { ordem: null, titulo: '' };
 
     document.getElementById('sala-aula-titulo').innerText = nomeCurso;
     document.getElementById('lista-aulas').innerHTML = '<p><i class="ri-loader-4-line ri-spin"></i> Carregando aulas...</p>';
@@ -572,66 +536,17 @@ async function carregarAulasDoCurso(idCurso) {
                 document.querySelectorAll('.lesson-item').forEach(el => el.classList.remove('active'));
                 li.classList.add('active');
 
-                renderizarPlayerAula(aula.url);
+                const embedUrl = transformarLinkDrive(aula.url);
+                document.getElementById('video-player-container').innerHTML = `<iframe src="${embedUrl}" class="drive-iframe" allow="autoplay" allowfullscreen></iframe>`;
 
                 registrarAcessoSilencioso(`Assistindo: ${aula.title}`);
-                aulaAtual = { ordem: aula.ordem, titulo: aula.title };
-                limparArquivoSelecionado();
                 abrirDuvidasDaAula(aula.ordem, aula.title);
-                // Busca o status direto do servidor (não usa cache) para garantir que a aula certa mostre o status certo.
-                if (cursoAtual.modoAtividade === 'por_aula') carregarStatusAtividade(cursoAtual.id);
             };
             lista.appendChild(li);
         });
     } else {
         lista.innerHTML = '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhuma aula encontrada.</p>';
     }
-}
-
-// Toca o vídeo com um <video> nativo apontando direto para o conteúdo do arquivo no Drive.
-// Isso evita depender do player embutido do Drive (que exige cookies de terceiros e falha em
-// navegadores com proteção de rastreamento ativada). Se por qualquer motivo o vídeo direto falhar
-// (arquivo grande demais, aviso de verificação de vírus, etc.), cai automaticamente para o iframe
-// como plano B — sem precisar de nenhum serviço externo.
-function renderizarPlayerAula(url) {
-    const container = document.getElementById('video-player-container');
-    const idMatch = (url || '').match(/[-\w]{25,}/);
-
-    if (!idMatch) {
-        container.innerHTML = `<iframe src="${transformarLinkDrive(url)}" class="drive-iframe" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
-        return;
-    }
-
-    const fileId = idMatch[0];
-    const videoSrc = `https://drive.google.com/uc?export=download&id=${fileId}`;
-    const iframeSrc = `https://drive.google.com/file/d/${fileId}/preview`;
-
-    container.innerHTML = `
-        <div class="video-loading-overlay" id="video-loading-overlay">
-            <i class="ri-loader-4-line ri-spin"></i> Carregando vídeo...
-        </div>
-        <video id="aula-video-tag" class="drive-iframe" controls preload="metadata" playsinline style="background:#000;">
-            <source src="${videoSrc}" type="video/mp4">
-        </video>
-    `;
-
-    const videoTag = document.getElementById('aula-video-tag');
-    const overlay = document.getElementById('video-loading-overlay');
-    let jaResolveu = false;
-
-    const esconderOverlay = () => { if (overlay) overlay.style.display = 'none'; };
-
-    const usarFallbackIframe = () => {
-        if (jaResolveu) return;
-        jaResolveu = true;
-        container.innerHTML = `<iframe src="${iframeSrc}" class="drive-iframe" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
-    };
-
-    videoTag.addEventListener('loadedmetadata', () => { jaResolveu = true; esconderOverlay(); });
-    videoTag.addEventListener('error', usarFallbackIframe);
-
-    // Se em 4s nada carregou (arquivo grande, bloqueio, etc.), cai pro iframe automaticamente.
-    setTimeout(() => { if (!jaResolveu) usarFallbackIframe(); }, 4000);
 }
 
 // ==========================================
@@ -702,10 +617,6 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
     e.preventDefault();
     if (!cursoAtual.id) return;
 
-    if (cursoAtual.modoAtividade === 'por_aula' && !aulaAtual.ordem) {
-        return alert("Selecione uma aula na lista ao lado antes de enviar a atividade dela.");
-    }
-
     const inputArquivo = document.getElementById('atividade-arquivo');
     const arquivo = inputArquivo.files[0];
     if (!arquivo) return alert("Selecione um arquivo para enviar.");
@@ -731,19 +642,6 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
     progressBar.style.width = '0%';
     progressText.innerText = '0%';
 
-    // Progresso simulado: sobe suavemente até 90% enquanto aguarda o servidor, e completa ao terminar.
-    // (Usamos fetch padrão em vez de XHR com progresso real porque o Apps Script não responde
-    // corretamente ao preflight de CORS exigido para acompanhar o progresso de upload de fato.)
-    let progressoAtual = 0;
-    const intervaloProgresso = setInterval(() => {
-        if (progressoAtual < 90) {
-            progressoAtual += Math.random() * 12;
-            if (progressoAtual > 90) progressoAtual = 90;
-            progressBar.style.width = progressoAtual + '%';
-            progressText.innerText = Math.round(progressoAtual) + '%';
-        }
-    }, 250);
-
     try {
         const base64 = await arquivoParaBase64(arquivo);
         const payload = {
@@ -758,29 +656,22 @@ document.getElementById('form-atividade')?.addEventListener('submit', async (e) 
             arquivoTipo: arquivo.type || 'application/octet-stream'
         };
 
-        if (cursoAtual.modoAtividade === 'por_aula') {
-            payload.aulaOrdem = aulaAtual.ordem;
-            payload.aulaTitulo = aulaAtual.titulo;
-        }
-
         btn.innerText = "Enviando arquivo...";
-        const res = await apiRequest(payload);
-
-        clearInterval(intervaloProgresso);
-        progressBar.style.width = '100%';
-        progressText.innerText = '100%';
+        const res = await apiRequestComProgresso(payload, (pct) => {
+            progressBar.style.width = pct + '%';
+            progressText.innerText = pct + '%';
+        });
 
         if (res.status === 'success') {
             alert("Atividade enviada com sucesso! Aguarde a correção do professor.");
             e.target.reset();
-            limparArquivoSelecionado();
+            document.getElementById('file-drop-text').innerText = 'Clique para escolher um arquivo (PDF, Word, PNG ou JPG)';
             registrarAcessoSilencioso(`Enviou atividade do curso: ${cursoAtual.nome}`);
             carregarStatusAtividade(cursoAtual.id);
         } else {
             alert(`Erro ao enviar: ${res.message}`);
         }
     } catch (err) {
-        clearInterval(intervaloProgresso);
         alert("Erro ao processar o arquivo. Tente novamente.");
     }
 
@@ -798,97 +689,75 @@ function arquivoParaBase64(arquivo) {
     });
 }
 
-let statusAtividadeCursoAtual = null; // guarda a resposta completa do backend (modo final ou por_aula)
+// Igual a apiRequest, mas via XMLHttpRequest para expor o progresso de envio (upload) numa barra visual
+function apiRequestComProgresso(payload, onProgress) {
+    return new Promise((resolve) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', APPS_SCRIPT_URL, true);
+        xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+
+        xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable && onProgress) {
+                const pct = Math.round((event.loaded / event.total) * 100);
+                onProgress(pct);
+            }
+        };
+
+        xhr.onload = () => {
+            try {
+                resolve(JSON.parse(xhr.responseText));
+            } catch (e) {
+                resolve({ status: 'error', message: 'Erro no servidor Apps Script.' });
+            }
+        };
+        xhr.onerror = () => resolve({ status: 'error', message: 'Falha de comunicação de rede.' });
+
+        xhr.send(JSON.stringify(payload));
+    });
+}
 
 async function carregarStatusAtividade(idCurso) {
+    const container = document.getElementById('status-atividade-container');
+    const btnCert = document.getElementById('btn-certificado');
+    const formAtividade = document.getElementById('form-atividade');
+
     if (currentUser.role === 'guest') return;
 
-    const container = document.getElementById('status-atividade-container');
     container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted);"><i class="ri-loader-4-line ri-spin"></i> Verificando status...</p>`;
 
     const res = await apiRequest({ action: 'getStatusAtividade', email: currentUser.email, token: currentUser.token, courseId: idCurso });
 
-    statusAtividadeCursoAtual = (res.status === 'success') ? res.data : null;
-    cursoAtual.cargaHoraria = (statusAtividadeCursoAtual && statusAtividadeCursoAtual.cargaHoraria) || 40;
+    statusAtividadeAtual = 'nao_enviada';
+    cursoAtual.cargaHoraria = (res.data && res.data.cargaHoraria) || 40;
 
-    renderizarStatusAtividadeAtual();
-}
-
-function renderizarStatusAtividadeAtual() {
-    const container = document.getElementById('status-atividade-container');
-    const btnCert = document.getElementById('btn-certificado');
-    const formAtividade = document.getElementById('form-atividade');
-    const tituloBox = document.getElementById('atividade-box-titulo');
-    const subtituloBox = document.getElementById('atividade-box-subtitulo');
-    const progressoWrap = document.getElementById('progresso-por-aula-container');
-    const progressoBar = document.getElementById('progresso-por-aula-bar');
-    const progressoTexto = document.getElementById('progresso-por-aula-texto');
-
-    if (!container || !statusAtividadeCursoAtual) return;
-
-    if (cursoAtual.modoAtividade === 'por_aula') {
-        const { aulasTotal, aprovadasCount, statusPorAula } = statusAtividadeCursoAtual;
-
-        // Barra de progresso geral do curso
-        progressoWrap.style.display = 'block';
-        const pct = aulasTotal > 0 ? Math.round((aprovadasCount / aulasTotal) * 100) : 0;
-        progressoBar.style.width = pct + '%';
-        progressoTexto.innerText = `${aprovadasCount} de ${aulasTotal} aula(s) com atividade aprovada`;
-
-        const certificadoLiberado = aulasTotal > 0 && aprovadasCount >= aulasTotal;
-
-        if (!aulaAtual.ordem) {
-            tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade por Aula`;
-            subtituloBox.innerText = "Selecione uma aula na lista ao lado para enviar (ou ver o status da) atividade dela.";
-            container.innerHTML = '';
-            formAtividade.style.display = 'none';
-        } else {
-            const statusAula = (statusPorAula && statusPorAula[String(aulaAtual.ordem).trim()]) || 'nao_enviada';
-            tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade da Aula ${aulaAtual.ordem}`;
-            subtituloBox.innerText = `Envie a atividade referente à aula "${aulaAtual.titulo}".`;
-            formAtividade.style.display = 'block';
-            statusAtividadeAtual = statusAula;
-            renderizarPillStatus(container, formAtividade, statusAula);
-        }
-
-        btnCert.disabled = !certificadoLiberado;
-        btnCert.innerHTML = certificadoLiberado
-            ? `<i class="ri-medal-line"></i> Emitir Certificado`
-            : `<i class="ri-lock-line"></i> Aprove todas as aulas para liberar`;
-        if (!certificadoLiberado) btnCert.classList.remove('success-btn');
-
-    } else {
-        // Modo final (padrão): uma única atividade libera o curso inteiro
-        progressoWrap.style.display = 'none';
-        tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade Final`;
-        subtituloBox.innerText = "Envie sua atividade final para liberar o certificado deste curso.";
-        formAtividade.style.display = 'block';
-
-        statusAtividadeAtual = statusAtividadeCursoAtual.status || 'nao_enviada';
-        renderizarPillStatus(container, formAtividade, statusAtividadeAtual);
-
-        const aprovado = statusAtividadeAtual === 'aprovado';
-        btnCert.disabled = !aprovado;
-        btnCert.innerHTML = aprovado
-            ? `<i class="ri-medal-line"></i> Emitir Certificado`
-            : `<i class="ri-lock-line"></i> Envie a atividade para liberar`;
-        if (!aprovado) btnCert.classList.remove('success-btn');
+    if (res.status === 'success' && res.data && res.data.status) {
+        statusAtividadeAtual = res.data.status; // 'pendente' | 'aprovado' | 'reprovado'
     }
-}
 
-function renderizarPillStatus(container, formAtividade, status) {
-    if (status === 'pendente') {
-        container.innerHTML = `<span class="status-pill status-pendente"><i class="ri-time-line"></i> Em análise pelo professor</span>`;
-        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
-    } else if (status === 'aprovado') {
-        container.innerHTML = `<span class="status-pill status-aprovado"><i class="ri-checkbox-circle-line"></i> Atividade aprovada</span>`;
-        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
-    } else if (status === 'reprovado') {
-        container.innerHTML = `<span class="status-pill status-reprovado"><i class="ri-close-circle-line"></i> Atividade reprovada — envie novamente</span>`;
-        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
-    } else {
-        container.innerHTML = `<span class="status-pill status-nao-enviada"><i class="ri-file-forbid-line"></i> Nenhuma atividade enviada</span>`;
-        formAtividade.querySelector('.btn-submit').innerText = 'Enviar Atividade';
+    renderizarStatusAtividade();
+
+    function renderizarStatusAtividade() {
+        if (statusAtividadeAtual === 'pendente') {
+            container.innerHTML = `<span class="status-pill status-pendente"><i class="ri-time-line"></i> Em análise pelo professor</span>`;
+            formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
+            btnCert.disabled = true;
+            btnCert.innerHTML = `<i class="ri-time-line"></i> Aguardando correção`;
+            btnCert.classList.remove('success-btn');
+        } else if (statusAtividadeAtual === 'aprovado') {
+            container.innerHTML = `<span class="status-pill status-aprovado"><i class="ri-checkbox-circle-line"></i> Atividade aprovada</span>`;
+            btnCert.disabled = false;
+            btnCert.innerHTML = `<i class="ri-medal-line"></i> Emitir Certificado`;
+        } else if (statusAtividadeAtual === 'reprovado') {
+            container.innerHTML = `<span class="status-pill status-reprovado"><i class="ri-close-circle-line"></i> Atividade reprovada — envie novamente</span>`;
+            btnCert.disabled = true;
+            btnCert.innerHTML = `<i class="ri-lock-line"></i> Corrija e reenvie a atividade`;
+            btnCert.classList.remove('success-btn');
+        } else {
+            container.innerHTML = `<span class="status-pill status-nao-enviada"><i class="ri-file-forbid-line"></i> Nenhuma atividade enviada</span>`;
+            btnCert.disabled = true;
+            btnCert.innerHTML = `<i class="ri-lock-line"></i> Envie a atividade para liberar`;
+            btnCert.classList.remove('success-btn');
+        }
     }
 }
 
@@ -896,8 +765,8 @@ function renderizarPillStatus(container, formAtividade, status) {
 // CERTIFICADOS
 // ==========================================
 document.getElementById('btn-certificado')?.addEventListener('click', async (e) => {
+    if (statusAtividadeAtual !== 'aprovado') return;
     if (!cursoAtual.id) return;
-    if (e.currentTarget.disabled) return;
 
     const btn = e.currentTarget;
     const originalHtml = btn.innerHTML;
@@ -1336,18 +1205,18 @@ async function carregarAtividadesPendentesAdmin() {
         <div class="admin-activity-item">
             <div class="admin-activity-info">
                 <strong>${item.nomeAluno}</strong>
-                <span style="font-size:0.85rem; color:var(--text-muted);">${item.nomeCurso}${item.aulaOrdem ? ` • Aula ${item.aulaOrdem}${item.aulaTitulo ? ': ' + item.aulaTitulo : ''}` : ''} • ${item.data}</span>
+                <span style="font-size:0.85rem; color:var(--text-muted);">${item.nomeCurso} • ${item.data}</span>
             </div>
             <div class="admin-activity-actions">
                 <a href="${item.linkArquivo}" target="_blank" class="btn-ghost" style="padding:8px 16px; font-size:0.85rem;"><i class="ri-eye-line"></i> Ver Arquivo</a>
-                <button class="btn-outline-success" onclick="avaliarAtividade('${item.id}', '${item.email}', '${item.courseId}', 'aprovado', this)"><i class="ri-check-line"></i> Aprovar</button>
-                <button class="btn-outline-danger" onclick="avaliarAtividade('${item.id}', '${item.email}', '${item.courseId}', 'reprovado', this)"><i class="ri-close-line"></i> Reprovar</button>
+                <button class="btn-outline-success" onclick="avaliarAtividade('${item.data}', '${item.email}', '${item.courseId}', 'aprovado', this)"><i class="ri-check-line"></i> Aprovar</button>
+                <button class="btn-outline-danger" onclick="avaliarAtividade('${item.data}', '${item.email}', '${item.courseId}', 'reprovado', this)"><i class="ri-close-line"></i> Reprovar</button>
             </div>
         </div>
     `).join('');
 }
 
-async function avaliarAtividade(idAtividade, emailAluno, courseId, decisao, btnEl) {
+async function avaliarAtividade(dataAtividade, emailAluno, courseId, decisao, btnEl) {
     const item = btnEl.closest('.admin-activity-item');
     item.style.opacity = '0.5';
     item.style.pointerEvents = 'none';
@@ -1356,7 +1225,7 @@ async function avaliarAtividade(idAtividade, emailAluno, courseId, decisao, btnE
         action: 'avaliarAtividade',
         email: currentUser.email,
         token: currentUser.token,
-        idAtividade, emailAluno, courseId, decisao
+        dataAtividade, emailAluno, courseId, decisao
     });
 
     if (res.status === 'success') {
@@ -1397,13 +1266,13 @@ async function carregarSolicitacoesCursoAdmin() {
                 <span style="font-size:0.85rem; color:var(--text-muted);">${item.nomeCurso} • ${item.email} • ${item.data}</span>
             </div>
             <div class="admin-activity-actions">
-                <button class="btn-outline-success" onclick="liberarAcessoCursoAdmin('${item.id}', '${item.email}', '${item.courseId}', this)"><i class="ri-check-line"></i> Liberar Acesso</button>
+                <button class="btn-outline-success" onclick="liberarAcessoCursoAdmin('${item.data}', '${item.email}', '${item.courseId}', this)"><i class="ri-check-line"></i> Liberar Acesso</button>
             </div>
         </div>
     `).join('');
 }
 
-async function liberarAcessoCursoAdmin(idSolicitacao, emailAluno, courseId, btnEl) {
+async function liberarAcessoCursoAdmin(dataSolicitacao, emailAluno, courseId, btnEl) {
     const item = btnEl.closest('.admin-activity-item');
     item.style.opacity = '0.5';
     item.style.pointerEvents = 'none';
@@ -1412,7 +1281,7 @@ async function liberarAcessoCursoAdmin(idSolicitacao, emailAluno, courseId, btnE
         action: 'liberarAcessoCurso',
         email: currentUser.email,
         token: currentUser.token,
-        emailAluno, courseId, idSolicitacao
+        emailAluno, courseId, dataSolicitacao
     });
 
     if (res.status === 'success') {
@@ -1424,36 +1293,6 @@ async function liberarAcessoCursoAdmin(idSolicitacao, emailAluno, courseId, btnE
         item.style.pointerEvents = 'auto';
     }
 }
-
-document.getElementById('form-revogar-acesso')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const emailAluno = document.getElementById('revogar-email-aluno').value.trim();
-    const courseId = document.getElementById('revogar-course-id').value.trim();
-
-    if (!confirm(`Confirma revogar o acesso do curso ${courseId} para ${emailAluno}?`)) return;
-
-    const btn = e.target.querySelector('.btn-outline-danger');
-    const originalText = btn.innerText;
-    btn.innerText = "Revogando...";
-    btn.disabled = true;
-
-    const res = await apiRequest({
-        action: 'revogarAcessoCurso',
-        email: currentUser.email,
-        token: currentUser.token,
-        emailAluno, courseId
-    });
-
-    if (res.status === 'success') {
-        alert("Acesso revogado com sucesso.");
-        e.target.reset();
-    } else {
-        alert(`Erro: ${res.message}`);
-    }
-
-    btn.innerText = originalText;
-    btn.disabled = false;
-});
 
 // ==========================================
 // RECUPERAÇÃO DE ACESSO (SELF-SERVICE)
@@ -2018,13 +1857,13 @@ async function carregarDuvidasPendentesAdmin() {
             </div>
             <div style="display:flex; gap:8px; margin-top:8px;">
                 <input type="text" id="resposta-duvida-${idx}" placeholder="Escreva a resposta..." style="margin-bottom:0;">
-                <button class="btn-outline-success" style="white-space:nowrap;" onclick="responderDuvidaAdmin('${item.id}', '${item.email}', ${idx}, this)">Responder</button>
+                <button class="btn-outline-success" style="white-space:nowrap;" onclick="responderDuvidaAdmin('${item.data}', '${item.email}', ${idx}, this)">Responder</button>
             </div>
         </div>
     `).join('');
 }
 
-async function responderDuvidaAdmin(idDuvida, emailAluno, idx, btnEl) {
+async function responderDuvidaAdmin(dataDuvida, emailAluno, idx, btnEl) {
     const input = document.getElementById(`resposta-duvida-${idx}`);
     const resposta = input.value.trim();
     if (!resposta) return alert("Escreva uma resposta antes de enviar.");
@@ -2036,7 +1875,7 @@ async function responderDuvidaAdmin(idDuvida, emailAluno, idx, btnEl) {
         action: 'responderDuvida',
         email: currentUser.email,
         token: currentUser.token,
-        idDuvida, emailAluno, resposta
+        dataDuvida, emailAluno, resposta
     });
 
     if (res.status === 'success') {
