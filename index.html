@@ -295,39 +295,18 @@
                     <div id="materiais-complementares" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
                     </div>
 
-                    <!-- ENVIO DE ATIVIDADE -->
-                    <div class="atividade-box">
-                        <h4 id="atividade-box-titulo"><i class="ri-upload-cloud-2-line"></i> Atividade Final</h4>
-                        <p id="atividade-box-subtitulo" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.8rem;">Envie sua atividade final para liberar o certificado deste curso.</p>
+                    <!-- ENVIO DE ATIVIDADE (via WhatsApp — sem upload no site) -->
+                    <div class="atividade-box" id="atividade-box" style="display:none;">
+                        <h4 id="atividade-box-titulo"><i class="ri-whatsapp-line"></i> Atividade desta Aula</h4>
+                        <p id="atividade-box-subtitulo" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.8rem;">Envie a atividade direto pelo WhatsApp — é só clicar no botão abaixo.</p>
                         <div id="progresso-por-aula-container" style="display:none; margin-bottom: 0.8rem;">
                             <div class="progress-track"><div id="progresso-por-aula-bar" class="progress-fill"></div></div>
                             <span id="progresso-por-aula-texto" style="font-size:0.78rem; color:var(--text-muted);"></span>
                         </div>
                         <div id="status-atividade-container"></div>
-                        <form id="form-atividade" class="mini-form">
-                            <label class="file-drop" id="file-drop-label" for="atividade-arquivo">
-                                <div id="file-drop-vazio" class="file-drop-vazio">
-                                    <i class="ri-file-upload-line"></i>
-                                    <span>Clique para escolher um arquivo (PDF, Word, PNG ou JPG)</span>
-                                </div>
-                                <div id="file-drop-selecionado" class="file-drop-selecionado" style="display:none;">
-                                    <i class="ri-file-text-line"></i>
-                                    <div class="file-drop-info">
-                                        <span id="file-drop-nome" class="file-drop-nome"></span>
-                                        <span id="file-drop-tamanho" class="file-drop-tamanho"></span>
-                                    </div>
-                                    <button type="button" id="file-drop-remover" class="file-drop-remover" title="Remover arquivo">
-                                        <i class="ri-close-line"></i>
-                                    </button>
-                                </div>
-                            </label>
-                            <input type="file" id="atividade-arquivo" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" style="display:none;" required>
-                            <div id="atividade-progress-wrap" style="display:none; margin-top: 0.8rem;">
-                                <div class="progress-track"><div id="atividade-progress-bar" class="progress-fill"></div></div>
-                                <span id="atividade-progress-text" style="font-size:0.78rem; color:var(--text-muted);">0%</span>
-                            </div>
-                            <button type="submit" class="primary-btn btn-submit" style="margin-top: 1rem;">Enviar Atividade</button>
-                        </form>
+                        <button type="button" id="btn-enviar-atividade-whatsapp" class="primary-btn btn-submit" style="margin-top: 0.6rem; background: #25D366;">
+                            <i class="ri-whatsapp-line"></i> Enviar Atividade pelo WhatsApp
+                        </button>
                     </div>
 
                     <div class="evaluation-carousel" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
@@ -570,7 +549,7 @@
 
         <!-- RODAPÉ -->
         <footer class="site-footer">
-            <p>Criado por <strong>Mateus Coelho</strong>.</p>
+            <p>Criado por mim, <strong>Mateus Coelho</strong>.</p>
             <p class="footer-sub">Coelhos Academy &copy; Todos os direitos reservados.</p>
             <p class="footer-sub">
                 <a href="#" onclick="navigateTo('politica-privacidade'); return false;" style="color:inherit;">Política de Privacidade</a>
