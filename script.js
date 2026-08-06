@@ -832,13 +832,17 @@ function renderizarPlayerYoutube(container, idYoutube, tituloAula, numeroAula) {
     const mostrarReproducao = () => {
         overlay.style.display = 'none';
         controles.style.display = 'flex';
-        if (playerYoutubeAtual) playerYoutubeAtual.playVideo();
+        if (playerYoutubeAtual && typeof playerYoutubeAtual.playVideo === 'function') {
+            try { playerYoutubeAtual.playVideo(); } catch (erro) { /* falha pontual de comunicação com o player — ignora */ }
+        }
     };
 
     // Volta pro estado "pausado": mostra a capa por cima de TUDO (esconde qualquer
     // marca do YouTube que esteja aparecendo por baixo) e esconde a barra de controles.
     const mostrarPausado = () => {
-        if (playerYoutubeAtual) playerYoutubeAtual.pauseVideo();
+        if (playerYoutubeAtual && typeof playerYoutubeAtual.pauseVideo === 'function') {
+            try { playerYoutubeAtual.pauseVideo(); } catch (erro) { /* falha pontual de comunicação com o player — ignora */ }
+        }
         overlay.style.display = 'flex';
         controles.style.display = 'none';
     };
@@ -923,15 +927,19 @@ function configurarControlesCustomizadosYoutube(player, mostrarPausado) {
             clearInterval(intervaloAtualizacao);
             return;
         }
-        const estado = player.getPlayerState();
-        const atual = player.getCurrentTime() || 0;
-        const duracao = player.getDuration() || 0;
-        if (duracao > 0) preenchimentoProgresso.style.width = ((atual / duracao) * 100) + '%';
-        tempoAtualEl.innerText = formatarTempoVideo(atual);
-        tempoTotalEl.innerText = formatarTempoVideo(duracao);
+        try {
+            const estado = player.getPlayerState();
+            const atual = player.getCurrentTime() || 0;
+            const duracao = player.getDuration() || 0;
+            if (duracao > 0) preenchimentoProgresso.style.width = ((atual / duracao) * 100) + '%';
+            tempoAtualEl.innerText = formatarTempoVideo(atual);
+            tempoTotalEl.innerText = formatarTempoVideo(duracao);
 
-        // YT.PlayerState.ENDED === 0 — quando o vídeo termina sozinho, cobre a tela de novo.
-        if (estado === 0) mostrarPausado();
+            // YT.PlayerState.ENDED === 0 — quando o vídeo termina sozinho, cobre a tela de novo.
+            if (estado === 0) mostrarPausado();
+        } catch (erro) {
+            // Falha pontual de comunicação com o player (ex: testando fora de um domínio real) — ignora e tenta de novo no próximo ciclo.
+        }
     }, 500);
 }
 
