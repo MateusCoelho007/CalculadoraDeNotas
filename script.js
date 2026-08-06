@@ -47,6 +47,10 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3YQ8A0T4Q9k7h
 // Logo usada no certificado e (opcionalmente) na marca
 const LOGO_URL = "https://i.postimg.cc/qvJD9HPp/LOGO.jpg";
 
+// Número de WhatsApp usado em todos os botões de contato do site (suporte, recuperação de
+// acesso, compra de curso pago e envio de atividade). Formato: 55 + DDD + número, sem símbolos.
+const WHATSAPP_NUMERO = "5521985211884";
+
 /**
  * ----------------------------------------------------------------------------
  * PERFORMANCE: CARREGAMENTO SOB DEMANDA DE BIBLIOTECAS EXTERNAS
@@ -102,7 +106,7 @@ let cursoAtual = {
     modoAtividade: 'final'
 };
 
-let aulaAtual = { ordem: null, titulo: '' };
+let aulaAtual = { ordem: null, titulo: '', temAtividade: false };
 
 // status da atividade final do curso aberto no momento: 'nao_enviada' | 'pendente' | 'aprovado' | 'reprovado'
 let statusAtividadeAtual = 'nao_enviada';
@@ -133,43 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('reg-whats')?.addEventListener('input', (e) => {
         e.target.value = formatarWhatsApp(e.target.value);
     });
-
-    // Chip do arquivo escolhido no envio de atividade
-    document.getElementById('atividade-arquivo')?.addEventListener('change', (e) => {
-        const arquivo = e.target.files && e.target.files[0];
-        if (arquivo) mostrarArquivoSelecionado(arquivo);
-        else limparArquivoSelecionado();
-    });
-
-    document.getElementById('file-drop-remover')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        limparArquivoSelecionado();
-    });
 });
-
-function formatarTamanhoArquivo(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function mostrarArquivoSelecionado(arquivo) {
-    document.getElementById('file-drop-vazio').style.display = 'none';
-    document.getElementById('file-drop-selecionado').style.display = 'flex';
-    document.getElementById('file-drop-label').classList.add('tem-arquivo');
-    document.getElementById('file-drop-nome').innerText = arquivo.name;
-    document.getElementById('file-drop-nome').title = arquivo.name;
-    document.getElementById('file-drop-tamanho').innerText = formatarTamanhoArquivo(arquivo.size);
-}
-
-function limparArquivoSelecionado() {
-    const input = document.getElementById('atividade-arquivo');
-    if (input) input.value = '';
-    document.getElementById('file-drop-vazio').style.display = 'flex';
-    document.getElementById('file-drop-selecionado').style.display = 'none';
-    document.getElementById('file-drop-label').classList.remove('tem-arquivo');
-}
 
 // ==========================================
 // AVISO DE CAPS LOCK
@@ -210,7 +178,7 @@ function formatarWhatsApp(valor) {
 // ESQUECI MINHA SENHA -> SUPORTE VIA WHATSAPP
 // ==========================================
 function esqueciSenha() {
-    const numeroSuporte = "5521985211884";
+    const numeroSuporte = WHATSAPP_NUMERO;
     const mensagem = encodeURIComponent("Olá! Esqueci minha senha na Coelhos Academy e preciso de ajuda para recuperar o acesso.");
     window.open(`https://wa.me/${numeroSuporte}?text=${mensagem}`, '_blank');
 }
@@ -570,7 +538,7 @@ function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price, modoAtivid
     cursoAtual.id = idCurso;
     cursoAtual.nome = nomeCurso;
     cursoAtual.modoAtividade = modoAtividade === 'por_aula' ? 'por_aula' : 'final';
-    aulaAtual = { ordem: null, titulo: '' };
+    aulaAtual = { ordem: null, titulo: '', temAtividade: false };
 
     document.getElementById('sala-aula-titulo').innerText = nomeCurso;
     document.getElementById('lista-aulas').innerHTML = '<p><i class="ri-loader-4-line ri-spin"></i> Carregando aulas...</p>';
@@ -614,7 +582,7 @@ async function solicitarCompraCurso(idCurso, nomeCurso, preco) {
         return;
     }
 
-    const numeroSuporte = "5521985211884";
+    const numeroSuporte = WHATSAPP_NUMERO;
     const precoFormatado = Number(preco).toFixed(2).replace('.', ',');
     const mensagem = encodeURIComponent(`Olá! Quero comprar o curso "${nomeCurso}" (R$ ${precoFormatado}) na Coelhos Academy. Meu e-mail de cadastro é ${currentUser.email}.`);
     window.open(`https://wa.me/${numeroSuporte}?text=${mensagem}`, '_blank');
@@ -650,11 +618,10 @@ async function carregarAulasDoCurso(idCurso) {
                 renderizarPlayerAula(aula.url, aula.title, aula.ordem);
 
                 registrarAcessoSilencioso(`Assistindo: ${aula.title}`);
-                aulaAtual = { ordem: aula.ordem, titulo: aula.title };
-                limparArquivoSelecionado();
+                aulaAtual = { ordem: aula.ordem, titulo: aula.title, temAtividade: !!aula.temAtividade };
                 abrirDuvidasDaAula(aula.ordem, aula.title);
                 // Busca o status direto do servidor (não usa cache) para garantir que a aula certa mostre o status certo.
-                if (cursoAtual.modoAtividade === 'por_aula') carregarStatusAtividade(cursoAtual.id);
+                carregarStatusAtividade(cursoAtual.id);
             };
             lista.appendChild(li);
         });
@@ -1032,113 +999,50 @@ const TIPOS_PERMITIDOS_ATIVIDADE = ['application/pdf', 'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'image/png', 'image/jpeg'];
 
-document.getElementById('form-atividade')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!cursoAtual.id) return;
+// Clique no botão "Enviar Atividade pelo WhatsApp": abre o WhatsApp com a mensagem pronta
+// (nome, e-mail, curso e aula) e registra no site que o envio foi feito, pra aparecer
+// como "Pendente" na fila do professor conferir e aprovar/reprovar.
+document.getElementById('btn-enviar-atividade-whatsapp')?.addEventListener('click', async () => {
+    if (!cursoAtual.id || !aulaAtual.ordem) return;
 
-    if (cursoAtual.modoAtividade === 'por_aula' && !aulaAtual.ordem) {
-        return alert("Selecione uma aula na lista ao lado antes de enviar a atividade dela.");
-    }
+    const nomeAluno = currentUser.nomeCompleto || currentUser.name;
+    const mensagem = `Olá! Estou enviando minha atividade.\n\nCurso: ${cursoAtual.nome}\nAula ${aulaAtual.ordem}: ${aulaAtual.titulo}\nAluno: ${nomeAluno}\nE-mail: ${currentUser.email}\n\n(Arquivo em anexo)`;
+    window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensagem)}`, '_blank');
 
-    const inputArquivo = document.getElementById('atividade-arquivo');
-    const arquivo = inputArquivo.files[0];
-    if (!arquivo) return alert("Selecione um arquivo para enviar.");
-
-    const extensao = arquivo.name.split('.').pop().toLowerCase();
-    const extensoesValidas = ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'];
-    if (!extensoesValidas.includes(extensao)) {
-        return alert("Formato não permitido. Envie apenas PDF, Word (.doc/.docx), PNG ou JPG.");
-    }
-    if (arquivo.size > 15 * 1024 * 1024) {
-        return alert("O arquivo é muito grande. Envie um arquivo de até 15MB.");
-    }
-
-    const btn = e.target.querySelector('.btn-submit');
-    const originalText = btn.innerText;
-    const progressWrap = document.getElementById('atividade-progress-wrap');
-    const progressBar = document.getElementById('atividade-progress-bar');
-    const progressText = document.getElementById('atividade-progress-text');
-
-    btn.innerText = "Preparando arquivo...";
+    const btn = document.getElementById('btn-enviar-atividade-whatsapp');
+    const originalHtml = btn.innerHTML;
     btn.disabled = true;
-    progressWrap.style.display = 'block';
-    progressBar.style.width = '0%';
-    progressText.innerText = '0%';
+    btn.innerHTML = 'Registrando...';
 
-    // Progresso simulado: sobe suavemente até 90% enquanto aguarda o servidor, e completa ao terminar.
-    // (Usamos fetch padrão em vez de XHR com progresso real porque o Apps Script não responde
-    // corretamente ao preflight de CORS exigido para acompanhar o progresso de upload de fato.)
-    let progressoAtual = 0;
-    const intervaloProgresso = setInterval(() => {
-        if (progressoAtual < 90) {
-            progressoAtual += Math.random() * 12;
-            if (progressoAtual > 90) progressoAtual = 90;
-            progressBar.style.width = progressoAtual + '%';
-            progressText.innerText = Math.round(progressoAtual) + '%';
-        }
-    }, 250);
+    const res = await apiRequest({
+        action: 'enviarAtividade',
+        email: currentUser.email,
+        token: currentUser.token,
+        nome: nomeAluno,
+        courseId: cursoAtual.id,
+        courseName: cursoAtual.nome,
+        aulaOrdem: aulaAtual.ordem,
+        aulaTitulo: aulaAtual.titulo
+    });
 
-    try {
-        const base64 = await arquivoParaBase64(arquivo);
-        const payload = {
-            action: 'enviarAtividade',
-            email: currentUser.email,
-            token: currentUser.token,
-            nome: currentUser.nomeCompleto || currentUser.name,
-            courseId: cursoAtual.id,
-            courseName: cursoAtual.nome,
-            arquivoBase64: base64,
-            arquivoNome: arquivo.name,
-            arquivoTipo: arquivo.type || 'application/octet-stream'
-        };
-
-        if (cursoAtual.modoAtividade === 'por_aula') {
-            payload.aulaOrdem = aulaAtual.ordem;
-            payload.aulaTitulo = aulaAtual.titulo;
-        }
-
-        btn.innerText = "Enviando arquivo...";
-        const res = await apiRequest(payload);
-
-        clearInterval(intervaloProgresso);
-        progressBar.style.width = '100%';
-        progressText.innerText = '100%';
-
-        if (res.status === 'success') {
-            alert("Atividade enviada com sucesso! Aguarde a correção do professor.");
-            e.target.reset();
-            limparArquivoSelecionado();
-            registrarAcessoSilencioso(`Enviou atividade do curso: ${cursoAtual.nome}`);
-            carregarStatusAtividade(cursoAtual.id);
-        } else {
-            alert(`Erro ao enviar: ${res.message}`);
-        }
-    } catch (err) {
-        clearInterval(intervaloProgresso);
-        alert("Erro ao processar o arquivo. Tente novamente.");
+    if (res.status === 'success') {
+        registrarAcessoSilencioso(`Enviou atividade via WhatsApp: ${cursoAtual.nome} (Aula ${aulaAtual.ordem})`);
+        carregarStatusAtividade(cursoAtual.id);
+    } else {
+        alert(`Erro ao registrar: ${res.message}`);
     }
 
-    btn.innerText = originalText;
     btn.disabled = false;
-    progressWrap.style.display = 'none';
+    btn.innerHTML = originalHtml;
 });
 
-function arquivoParaBase64(arquivo) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(arquivo);
-    });
-}
-
-let statusAtividadeCursoAtual = null; // guarda a resposta completa do backend (modo final ou por_aula)
+let statusAtividadeCursoAtual = null; // guarda a resposta completa do backend (progresso do curso todo)
 
 async function carregarStatusAtividade(idCurso) {
     if (currentUser.role === 'guest') return;
 
     const container = document.getElementById('status-atividade-container');
-    container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted);"><i class="ri-loader-4-line ri-spin"></i> Verificando status...</p>`;
+    if (container) container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted);"><i class="ri-loader-4-line ri-spin"></i> Verificando status...</p>`;
 
     const res = await apiRequest({ action: 'getStatusAtividade', email: currentUser.email, token: currentUser.token, courseId: idCurso });
 
@@ -1148,81 +1052,66 @@ async function carregarStatusAtividade(idCurso) {
     renderizarStatusAtividadeAtual();
 }
 
+// Mostra (ou esconde) a caixa de atividade conforme a aula selecionada exige atividade
+// ou não (coluna "TemAtividade" da aba Aulas), e atualiza a barra de progresso geral
+// do curso + o botão de certificado.
 function renderizarStatusAtividadeAtual() {
+    const caixa = document.getElementById('atividade-box');
     const container = document.getElementById('status-atividade-container');
     const btnCert = document.getElementById('btn-certificado');
-    const formAtividade = document.getElementById('form-atividade');
-    const tituloBox = document.getElementById('atividade-box-titulo');
+    const btnEnviar = document.getElementById('btn-enviar-atividade-whatsapp');
     const subtituloBox = document.getElementById('atividade-box-subtitulo');
     const progressoWrap = document.getElementById('progresso-por-aula-container');
     const progressoBar = document.getElementById('progresso-por-aula-bar');
     const progressoTexto = document.getElementById('progresso-por-aula-texto');
 
-    if (!container || !statusAtividadeCursoAtual) return;
+    if (!caixa || !statusAtividadeCursoAtual) return;
 
-    if (cursoAtual.modoAtividade === 'por_aula') {
-        const { aulasTotal, aprovadasCount, statusPorAula } = statusAtividadeCursoAtual;
+    const { aulasTotal, aprovadasCount, statusPorAula } = statusAtividadeCursoAtual;
 
-        // Barra de progresso geral do curso
+    // Barra de progresso geral do curso (sempre visível, independente da aula selecionada)
+    if (aulasTotal > 0) {
         progressoWrap.style.display = 'block';
-        const pct = aulasTotal > 0 ? Math.round((aprovadasCount / aulasTotal) * 100) : 0;
+        const pct = Math.round((aprovadasCount / aulasTotal) * 100);
         progressoBar.style.width = pct + '%';
         progressoTexto.innerText = `${aprovadasCount} de ${aulasTotal} aula(s) com atividade aprovada`;
-
-        const certificadoLiberado = aulasTotal > 0 && aprovadasCount >= aulasTotal;
-
-        if (!aulaAtual.ordem) {
-            tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade por Aula`;
-            subtituloBox.innerText = "Selecione uma aula na lista ao lado para enviar (ou ver o status da) atividade dela.";
-            container.innerHTML = '';
-            formAtividade.style.display = 'none';
-        } else {
-            const statusAula = (statusPorAula && statusPorAula[String(aulaAtual.ordem).trim()]) || 'nao_enviada';
-            tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade da Aula ${aulaAtual.ordem}`;
-            subtituloBox.innerText = `Envie a atividade referente à aula "${aulaAtual.titulo}".`;
-            formAtividade.style.display = 'block';
-            statusAtividadeAtual = statusAula;
-            renderizarPillStatus(container, formAtividade, statusAula);
-        }
-
-        btnCert.disabled = !certificadoLiberado;
-        btnCert.innerHTML = certificadoLiberado
-            ? `<i class="ri-medal-line"></i> Emitir Certificado`
-            : `<i class="ri-lock-line"></i> Aprove todas as aulas para liberar`;
-        if (!certificadoLiberado) btnCert.classList.remove('success-btn');
-
     } else {
-        // Modo final (padrão): uma única atividade libera o curso inteiro
         progressoWrap.style.display = 'none';
-        tituloBox.innerHTML = `<i class="ri-upload-cloud-2-line"></i> Atividade Final`;
-        subtituloBox.innerText = "Envie sua atividade final para liberar o certificado deste curso.";
-        formAtividade.style.display = 'block';
-
-        statusAtividadeAtual = statusAtividadeCursoAtual.status || 'nao_enviada';
-        renderizarPillStatus(container, formAtividade, statusAtividadeAtual);
-
-        const aprovado = statusAtividadeAtual === 'aprovado';
-        btnCert.disabled = !aprovado;
-        btnCert.innerHTML = aprovado
-            ? `<i class="ri-medal-line"></i> Emitir Certificado`
-            : `<i class="ri-lock-line"></i> Envie a atividade para liberar`;
-        if (!aprovado) btnCert.classList.remove('success-btn');
     }
+
+    // A caixa de atividade só aparece se a aula selecionada exigir atividade.
+    if (!aulaAtual.ordem || !aulaAtual.temAtividade) {
+        caixa.style.display = 'none';
+    } else {
+        caixa.style.display = 'block';
+        subtituloBox.innerText = `Atividade da Aula ${aulaAtual.ordem}: ${aulaAtual.titulo}`;
+
+        const statusAula = (statusPorAula && statusPorAula[String(aulaAtual.ordem).trim()]) || 'nao_enviada';
+        statusAtividadeAtual = statusAula;
+        renderizarPillStatus(container, btnEnviar, statusAula);
+    }
+
+    const certificadoLiberado = aulasTotal > 0 && aprovadasCount >= aulasTotal;
+    btnCert.disabled = !certificadoLiberado;
+    btnCert.innerHTML = certificadoLiberado
+        ? `<i class="ri-medal-line"></i> Emitir Certificado`
+        : `<i class="ri-lock-line"></i> Envie as atividades para liberar`;
+    if (!certificadoLiberado) btnCert.classList.remove('success-btn');
 }
 
-function renderizarPillStatus(container, formAtividade, status) {
+function renderizarPillStatus(container, btnEnviar, status) {
     if (status === 'pendente') {
         container.innerHTML = `<span class="status-pill status-pendente"><i class="ri-time-line"></i> Em análise pelo professor</span>`;
-        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
+        btnEnviar.innerHTML = '<i class="ri-whatsapp-line"></i> Reenviar pelo WhatsApp';
     } else if (status === 'aprovado') {
         container.innerHTML = `<span class="status-pill status-aprovado"><i class="ri-checkbox-circle-line"></i> Atividade aprovada</span>`;
-        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
+        btnEnviar.innerHTML = '<i class="ri-whatsapp-line"></i> Reenviar pelo WhatsApp';
     } else if (status === 'reprovado') {
         container.innerHTML = `<span class="status-pill status-reprovado"><i class="ri-close-circle-line"></i> Atividade reprovada — envie novamente</span>`;
-        formAtividade.querySelector('.btn-submit').innerText = 'Reenviar Atividade';
+        btnEnviar.innerHTML = '<i class="ri-whatsapp-line"></i> Reenviar pelo WhatsApp';
     } else {
-        container.innerHTML = `<span class="status-pill status-nao-enviada"><i class="ri-file-forbid-line"></i> Nenhuma atividade enviada</span>`;
-        formAtividade.querySelector('.btn-submit').innerText = 'Enviar Atividade';
+        container.innerHTML = `<span class="status-pill status-nao-enviada"><i class="ri-file-forbid-line"></i> Nenhuma atividade enviada ainda</span>`;
+        btnEnviar.innerHTML = '<i class="ri-whatsapp-line"></i> Enviar Atividade pelo WhatsApp';
     }
 }
 
@@ -1676,7 +1565,7 @@ async function carregarAtividadesPendentesAdmin() {
                 <span style="font-size:0.85rem; color:var(--text-muted);">${item.nomeCurso}${item.aulaOrdem ? ` • Aula ${item.aulaOrdem}${item.aulaTitulo ? ': ' + item.aulaTitulo : ''}` : ''} • ${item.data}</span>
             </div>
             <div class="admin-activity-actions">
-                <a href="${item.linkArquivo}" target="_blank" class="btn-ghost" style="padding:8px 16px; font-size:0.85rem;"><i class="ri-eye-line"></i> Ver Arquivo</a>
+                <span class="role-badge" style="background: rgba(37,211,102,0.15); color:#25D366;"><i class="ri-whatsapp-line"></i> Confira no WhatsApp</span>
                 <button class="btn-outline-success" onclick="avaliarAtividade('${item.id}', '${item.email}', '${item.courseId}', 'aprovado', this)"><i class="ri-check-line"></i> Aprovar</button>
                 <button class="btn-outline-danger" onclick="avaliarAtividade('${item.id}', '${item.email}', '${item.courseId}', 'reprovado', this)"><i class="ri-close-line"></i> Reprovar</button>
             </div>
@@ -2537,7 +2426,7 @@ function carregarImagemElemento(url) {
 // BOTÃO FLUTUANTE DE WHATSAPP
 // ==========================================
 function abrirWhatsappSuporte() {
-    const numeroSuporte = "5521985211884";
+    const numeroSuporte = WHATSAPP_NUMERO;
     const mensagem = encodeURIComponent("Olá! Estou navegando no site da Coelhos Academy e gostaria de tirar uma dúvida.");
     window.open(`https://wa.me/${numeroSuporte}?text=${mensagem}`, '_blank');
 }
