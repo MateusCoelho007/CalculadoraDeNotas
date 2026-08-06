@@ -142,28 +142,6 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .input-group input { padding-left: 45px; margin-bottom: 0; }
 .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 2rem; font-size: 0.9rem; color: var(--text-muted); cursor: pointer; }
 .checkbox-group input { width: auto; accent-color: var(--accent); transform: scale(1.2); margin-bottom: 0; }
-.file-drop {
-    border: 1.5px dashed var(--border-color); border-radius: 14px; padding: 1.2rem;
-    cursor: pointer; transition: all 0.2s; color: var(--text-muted); font-size: 0.9rem;
-    box-sizing: border-box; width: 100%; overflow: hidden;
-}
-.file-drop:hover { border-color: var(--accent); color: var(--accent); background: var(--card-bg); }
-.file-drop.tem-arquivo { border-style: solid; border-color: var(--accent); background: var(--glow); padding: 0.8rem 1rem; }
-.file-drop-vazio { display: flex; flex-direction: column; align-items: center; text-align: center; }
-.file-drop-vazio i { font-size: 1.8rem; display: block; margin-bottom: 0.4rem; color: var(--accent); }
-.file-drop-selecionado { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; }
-.file-drop-selecionado > i { font-size: 1.6rem; color: var(--accent); flex-shrink: 0; }
-.file-drop-info { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left; }
-.file-drop-nome {
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-    font-weight: 600; color: var(--text-main); font-size: 0.85rem;
-}
-.file-drop-tamanho { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
-.file-drop-remover {
-    background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;
-    flex-shrink: 0; padding: 4px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-}
-.file-drop-remover:hover { color: #ef4444; background: rgba(239,68,68,0.12); }
 
 /* --- 5. LÓGICA DE VIEWS (SPA) --- */
 .view-section { display: none; padding: 3rem; flex-grow: 1; animation: fadeIn 0.45s cubic-bezier(.2,.8,.2,1) forwards; }
@@ -243,38 +221,27 @@ video.drive-iframe { object-fit: contain; background: #000; }
 
 /* --------------------------------------------------------------------------
    MOLDURA PERSONALIZADA DO PLAYER DE VÍDEO (usada para vídeos do YouTube)
-   Dá a "cara" da Coelhos Academy ao redor do player, em vez de mostrar
-   o vídeo do YouTube "pelado" dentro do site.
+   Sem cabeçalho, sem nenhum elemento visual do YouTube — só o vídeo e os
+   controles próprios da Coelhos Academy por cima.
    -------------------------------------------------------------------------- */
 .video-frame-custom {
-    width: 100%; height: 100%; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;
+    width: 100%; height: 100%; border-radius: 20px; overflow: hidden; position: relative;
     box-shadow: 0 15px 40px var(--shadow-color); border: 1px solid var(--border-color); background: #000;
 }
-/* Cabeçalho bem fino — só o suficiente pra identificar a marca e a aula, sem tomar espaço do vídeo */
-.video-frame-header {
-    background: var(--gradient-brand); padding: 5px 14px; display: flex; align-items: center; justify-content: space-between;
-    gap: 8px; flex-shrink: 0; flex-wrap: nowrap; min-height: 0;
-}
-.video-frame-brand {
-    color: #fff; font-weight: 700; font-size: 0.68rem; font-family: 'Space Grotesk', sans-serif;
-    letter-spacing: 0.02em; display: flex; align-items: center; gap: 5px; white-space: nowrap; opacity: 0.92;
-}
-.video-frame-brand i { font-size: 0.85rem; }
-.video-frame-tag {
-    color: rgba(255,255,255,0.8); font-size: 0.66rem; font-family: 'JetBrains Mono', monospace;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%;
-}
-.video-frame-body { flex: 1; position: relative; min-height: 0; background: #000; }
-.video-frame-body iframe, .video-frame-body #yt-player-mount, .video-frame-body #yt-player-mount iframe {
-    position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+/* O player do YouTube (injetado pela API dentro de #yt-player-mount) sempre no fundo (z-index 0) */
+.video-frame-custom iframe, .video-frame-custom #yt-player-mount {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: none; z-index: 0;
 }
 
-/* Capa própria mostrada ANTES do vídeo começar (thumbnail + botão de play com o gradiente da marca) */
+/* Capa própria: aparece ANTES do vídeo começar E toda vez que o vídeo é pausado —
+   cobre a tela inteira de propósito, escondendo qualquer marca do YouTube que
+   apareça por baixo (isso roda dentro do iframe deles, fora do nosso alcance
+   via CSS — a única forma confiável de escondê-la é cobrir por cima mesmo). */
 .custom-video-overlay {
-    position: absolute; inset: 0; background-size: cover; background-position: center;
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    position: absolute; inset: 0; z-index: 3; background-size: cover; background-position: center;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; background-color: #000;
 }
-.custom-video-overlay::before { content: ''; position: absolute; inset: 0; background: rgba(9,12,21,0.35); }
+.custom-video-overlay::before { content: ''; position: absolute; inset: 0; background: rgba(9,12,21,0.4); }
 .custom-play-btn {
     position: relative; z-index: 1; width: 76px; height: 76px; border-radius: 50%; border: none;
     background: var(--gradient-brand); color: #fff; font-size: 1.9rem; display: flex; align-items: center; justify-content: center;
