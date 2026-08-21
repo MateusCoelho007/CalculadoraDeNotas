@@ -103,7 +103,8 @@ let cursoAtual = {
     id: null,
     nome: "",
     cargaHoraria: 40,
-    modoAtividade: 'final'
+    modoAtividade: 'final',
+    tipoCurso: 'video' // 'video' (padrão) ou 'conteudo' (módulos com carrossel de slides)
 };
 
 let aulaAtual = { ordem: null, titulo: '', temAtividade: false };
@@ -492,7 +493,7 @@ async function carregarCursosVitrine() {
             } else {
                 btnText = ehPago ? "Acessar Curso" : "Acessar Grátis";
                 disabledAttr = '';
-                onclickAttr = `onclick="abrirSalaDeAula(${curso.id}, '${escapeAttr(curso.title)}', '${curso.pdfLink}', '${curso.pptLink}', ${curso.price}, '${curso.modoAtividade}')"`;
+                onclickAttr = `onclick="abrirSalaDeAula(${curso.id}, '${escapeAttr(curso.title)}', '${curso.pdfLink}', '${curso.pptLink}', ${curso.price}, '${curso.modoAtividade}', '${curso.tipoCurso}')"`;
             }
 
             return `
@@ -522,7 +523,7 @@ function escapeAttr(str) {
     return String(str || '').replace(/'/g, "\\'");
 }
 
-function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price, modoAtividade) {
+function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price, modoAtividade, tipoCurso) {
     if (currentUser.role === 'guest') {
         alert("Você precisa fazer login para acessar a Sala de Aula.");
         openAuthPage('login');
@@ -538,11 +539,26 @@ function abrirSalaDeAula(idCurso, nomeCurso, pdfLink, pptLink, price, modoAtivid
     cursoAtual.id = idCurso;
     cursoAtual.nome = nomeCurso;
     cursoAtual.modoAtividade = modoAtividade === 'por_aula' ? 'por_aula' : 'final';
+    cursoAtual.tipoCurso = tipoCurso === 'conteudo' ? 'conteudo' : 'video';
     aulaAtual = { ordem: null, titulo: '', temAtividade: false };
 
     document.getElementById('sala-aula-titulo').innerText = nomeCurso;
-    document.getElementById('lista-aulas').innerHTML = '<p><i class="ri-loader-4-line ri-spin"></i> Carregando aulas...</p>';
-    document.getElementById('video-player-container').innerHTML = `<i class="ri-google-drive-fill"></i><p>Selecione uma aula ao lado</p>`;
+
+    // Rótulo da lista lateral: "Módulos" pra curso de conteúdo, "Aulas" pra curso de vídeo (como sempre foi).
+    const tituloListaEl = document.getElementById('titulo-lista-aulas');
+    if (tituloListaEl) {
+        tituloListaEl.innerHTML = cursoAtual.tipoCurso === 'conteudo'
+            ? `<i class="ri-layout-grid-line"></i> Módulos`
+            : `<i class="ri-list-check-2"></i> Aulas`;
+    }
+
+    document.getElementById('lista-aulas').innerHTML = `<p><i class="ri-loader-4-line ri-spin"></i> Carregando ${cursoAtual.tipoCurso === 'conteudo' ? 'módulos' : 'aulas'}...</p>`;
+
+    if (cursoAtual.tipoCurso === 'conteudo') {
+        document.getElementById('video-player-container').innerHTML = `<i class="ri-book-open-line"></i><p>Selecione um módulo ao lado</p>`;
+    } else {
+        document.getElementById('video-player-container').innerHTML = `<i class="ri-google-drive-fill"></i><p>Selecione uma aula ao lado</p>`;
+    }
 
     const btnCompartilhar = document.getElementById('btn-compartilhar-certificado');
     if (btnCompartilhar) btnCompartilhar.style.display = 'none';
@@ -600,37 +616,192 @@ async function solicitarCompraCurso(idCurso, nomeCurso, preco) {
     }
 }
 
+let listaModulosAtual = []; // guarda a lista de módulos do curso de conteúdo aberto (usado pelo botão "Próximo Módulo")
+
 async function carregarAulasDoCurso(idCurso) {
     const res = await apiRequest({ action: 'getAulas', courseId: idCurso });
     const lista = document.getElementById('lista-aulas');
     lista.innerHTML = '';
 
+    const ehConteudo = cursoAtual.tipoCurso === 'conteudo';
+    const rotuloSingular = ehConteudo ? 'Módulo' : 'Aula';
+    const iconeItem = ehConteudo ? 'ri-layout-grid-line' : 'ri-play-circle-line';
+
     if (res.status === 'success' && res.data.length > 0) {
+        listaModulosAtual = res.data; // guarda pra navegação "Próximo Módulo"
+
         res.data.forEach((aula) => {
             const li = document.createElement('li');
             li.className = 'lesson-item';
-            li.innerHTML = `<i class="ri-play-circle-line"></i> Aula ${aula.ordem}: ${aula.title}`;
+            li.innerHTML = `<i class="${iconeItem}"></i> ${rotuloSingular} ${aula.ordem}: ${aula.title}`;
 
             li.onclick = () => {
                 document.querySelectorAll('.lesson-item').forEach(el => el.classList.remove('active'));
                 li.classList.add('active');
 
-                renderizarPlayerAula(aula.url, aula.title, aula.ordem);
-
-                registrarAcessoSilencioso(`Assistindo: ${aula.title}`);
                 aulaAtual = { ordem: aula.ordem, titulo: aula.title, temAtividade: !!aula.temAtividade };
+
+                if (ehConteudo) {
+                    carregarCarrosselModulo(aula.ordem, aula.title, aula.url);
+                } else {
+                    renderizarPlayerAula(aula.url, aula.title, aula.ordem);
+                }
+
+                registrarAcessoSilencioso(`${ehConteudo ? 'Estudando' : 'Assistindo'}: ${aula.title}`);
                 abrirDuvidasDaAula(aula.ordem, aula.title);
-                // Busca o status direto do servidor (não usa cache) para garantir que a aula certa mostre o status certo.
+                // Busca o status direto do servidor (não usa cache) para garantir que a aula/módulo certo mostre o status certo.
                 carregarStatusAtividade(cursoAtual.id);
             };
             lista.appendChild(li);
         });
     } else {
-        lista.innerHTML = '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhuma aula encontrada.</p>';
+        listaModulosAtual = [];
+        lista.innerHTML = `<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum${ehConteudo ? ' módulo' : 'a aula'} encontrado${ehConteudo ? '' : 'a'}.</p>`;
     }
 }
 
-// Toca o vídeo com um <video> nativo apontando direto para o conteúdo do arquivo no Drive.
+/**
+ * ============================================================================
+ * CARROSSEL DE MÓDULOS (cursos do tipo "conteudo")
+ * ----------------------------------------------------------------------------
+ * Cada módulo tem uma sequência de slides (imagem + texto) cadastrados na aba
+ * "Slides" da planilha. O aluno navega entre eles com as setas, bolinhas ou
+ * arrastando o dedo (celular). Ao chegar no último slide, aparece o botão
+ * "Próximo Módulo", que avança pro próximo item da lista lateral sozinho.
+ * ============================================================================
+ */
+let slidesModuloAtual = [];
+let indiceSlideAtual = 0;
+
+async function carregarCarrosselModulo(moduloOrdem, moduloTitulo, audioUrl) {
+    const container = document.getElementById('video-player-container');
+    container.innerHTML = `<p style="color:var(--text-muted);"><i class="ri-loader-4-line ri-spin"></i> Carregando módulo...</p>`;
+
+    const res = await apiRequest({ action: 'getSlidesModulo', courseId: cursoAtual.id, moduloOrdem: moduloOrdem });
+    slidesModuloAtual = (res.status === 'success') ? res.data : [];
+    indiceSlideAtual = 0;
+
+    if (slidesModuloAtual.length === 0) {
+        container.innerHTML = `
+            <div class="flex-center" style="height:100%; color:var(--text-muted); gap:0.5rem;">
+                <i class="ri-image-line" style="font-size:3rem;"></i>
+                <p>Nenhum slide cadastrado para este módulo ainda.</p>
+            </div>`;
+        return;
+    }
+
+    const temAudio = audioUrl && String(audioUrl).trim() && audioUrl !== 'undefined';
+    const audioHtml = temAudio
+        ? `<audio controls class="carrossel-audio"><source src="${audioUrl}">Seu navegador não suporta áudio.</audio>`
+        : '';
+
+    container.innerHTML = `
+        <div class="carrossel-modulo">
+            <div class="carrossel-header">
+                <span class="carrossel-titulo-modulo">${moduloTitulo}</span>
+                <span class="carrossel-progresso" id="carrossel-progresso"></span>
+            </div>
+            ${audioHtml}
+            <div class="carrossel-stage">
+                <button class="carrossel-seta" id="carrossel-prev" aria-label="Slide anterior"><i class="ri-arrow-left-s-line"></i></button>
+                <div class="carrossel-imagem-wrap">
+                    <img class="carrossel-imagem" id="carrossel-imagem" src="" alt="">
+                </div>
+                <button class="carrossel-seta" id="carrossel-next" aria-label="Próximo slide"><i class="ri-arrow-right-s-line"></i></button>
+            </div>
+            <p class="carrossel-texto" id="carrossel-texto"></p>
+            <div class="carrossel-dots" id="carrossel-dots"></div>
+            <button class="primary-btn success-btn carrossel-btn-proximo" id="carrossel-proximo-modulo" style="display:none;">
+                Próximo Módulo <i class="ri-arrow-right-line"></i>
+            </button>
+        </div>
+    `;
+
+    document.getElementById('carrossel-prev').onclick = () => navegarCarrossel(-1);
+    document.getElementById('carrossel-next').onclick = () => navegarCarrossel(1);
+    document.getElementById('carrossel-proximo-modulo').onclick = irParaProximoModulo;
+
+    // Suporte a arrastar o dedo (swipe) no celular pra trocar de slide.
+    const stage = container.querySelector('.carrossel-stage');
+    let xToqueInicial = null;
+    stage.addEventListener('touchstart', (e) => { xToqueInicial = e.touches[0].clientX; }, { passive: true });
+    stage.addEventListener('touchend', (e) => {
+        if (xToqueInicial === null) return;
+        const diferenca = e.changedTouches[0].clientX - xToqueInicial;
+        if (Math.abs(diferenca) > 40) navegarCarrossel(diferenca > 0 ? -1 : 1);
+        xToqueInicial = null;
+    });
+
+    renderizarSlideAtual();
+}
+
+function renderizarSlideAtual() {
+    const slide = slidesModuloAtual[indiceSlideAtual];
+    if (!slide) return;
+
+    const imgEl = document.getElementById('carrossel-imagem');
+    const textoEl = document.getElementById('carrossel-texto');
+    const progressoEl = document.getElementById('carrossel-progresso');
+    const dotsEl = document.getElementById('carrossel-dots');
+    const btnProximoModulo = document.getElementById('carrossel-proximo-modulo');
+    if (!imgEl) return; // o aluno já trocou de módulo antes disso rodar
+
+    // Reinicia a animação de fade a cada troca de slide (imagem + texto entram juntos).
+    imgEl.classList.remove('carrossel-fade-in');
+    textoEl.classList.remove('carrossel-fade-in');
+    void imgEl.offsetWidth; // força o navegador a "esquecer" a animação anterior antes de reaplicar
+    imgEl.src = slide.imagem;
+    imgEl.alt = slide.texto ? slide.texto.slice(0, 80) : '';
+    textoEl.innerText = slide.texto || '';
+    imgEl.classList.add('carrossel-fade-in');
+    textoEl.classList.add('carrossel-fade-in');
+
+    progressoEl.innerText = `${indiceSlideAtual + 1} / ${slidesModuloAtual.length}`;
+
+    dotsEl.innerHTML = slidesModuloAtual.map((_, i) =>
+        `<span class="carrossel-dot ${i === indiceSlideAtual ? 'ativo' : ''}" onclick="irParaSlide(${i})"></span>`
+    ).join('');
+
+    const ehUltimoSlide = indiceSlideAtual === slidesModuloAtual.length - 1;
+    btnProximoModulo.style.display = ehUltimoSlide ? 'flex' : 'none';
+    document.getElementById('carrossel-prev').disabled = indiceSlideAtual === 0;
+}
+
+// direcao: -1 (anterior) ou +1 (próximo). Se já estiver no último slide e avançar,
+// pula direto pro próximo módulo (mais fluido do que "travar" no fim do carrossel).
+function navegarCarrossel(direcao) {
+    const novoIndice = indiceSlideAtual + direcao;
+    if (novoIndice >= slidesModuloAtual.length) {
+        irParaProximoModulo();
+        return;
+    }
+    if (novoIndice < 0) return;
+    indiceSlideAtual = novoIndice;
+    renderizarSlideAtual();
+}
+
+function irParaSlide(indice) {
+    indiceSlideAtual = indice;
+    renderizarSlideAtual();
+}
+
+// Avança pro próximo item da lista lateral (reaproveita o clique que já dispara tudo:
+// carregar o novo módulo, marcar como ativo na lista, checar atividade, etc.)
+function irParaProximoModulo() {
+    const indiceAtual = listaModulosAtual.findIndex(m => String(m.ordem) === String(aulaAtual.ordem));
+    const itens = document.querySelectorAll('#lista-aulas .lesson-item');
+
+    if (indiceAtual === -1 || indiceAtual >= listaModulosAtual.length - 1) {
+        alert("Você concluiu todos os módulos deste curso! 🎉");
+        return;
+    }
+    if (itens[indiceAtual + 1]) {
+        itens[indiceAtual + 1].click();
+        document.getElementById('video-player-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+
 // Isso evita depender do player embutido do Drive (que exige cookies de terceiros e falha em
 // navegadores com proteção de rastreamento ativada). Se por qualquer motivo o vídeo direto falhar
 // (arquivo grande demais, aviso de verificação de vírus, etc.), cai automaticamente para o iframe
@@ -1076,23 +1247,26 @@ function renderizarStatusAtividadeAtual() {
     if (!caixa || !statusAtividadeCursoAtual) return;
 
     const { aulasTotal, aprovadasCount, statusPorAula } = statusAtividadeCursoAtual;
+    const rotulo = cursoAtual.tipoCurso === 'conteudo' ? 'módulo' : 'aula';
+    const rotuloMaiusculo = cursoAtual.tipoCurso === 'conteudo' ? 'Módulo' : 'Aula';
 
     // Barra de progresso geral do curso (sempre visível, independente da aula selecionada)
     if (aulasTotal > 0) {
         progressoWrap.style.display = 'block';
         const pct = Math.round((aprovadasCount / aulasTotal) * 100);
         progressoBar.style.width = pct + '%';
-        progressoTexto.innerText = `${aprovadasCount} de ${aulasTotal} aula(s) com atividade aprovada`;
+        progressoTexto.innerText = `${aprovadasCount} de ${aulasTotal} ${rotulo}(s) com atividade aprovada`;
     } else {
         progressoWrap.style.display = 'none';
     }
 
-    // A caixa de atividade só aparece se a aula selecionada exigir atividade.
+    // A caixa de atividade só aparece se a aula/módulo selecionado exigir atividade.
     if (!aulaAtual.ordem || !aulaAtual.temAtividade) {
         caixa.style.display = 'none';
     } else {
         caixa.style.display = 'block';
-        subtituloBox.innerText = `Atividade da Aula ${aulaAtual.ordem}: ${aulaAtual.titulo}`;
+        const artigo = cursoAtual.tipoCurso === 'conteudo' ? 'do' : 'da';
+        subtituloBox.innerText = `Atividade ${artigo} ${rotuloMaiusculo} ${aulaAtual.ordem}: ${aulaAtual.titulo}`;
 
         const statusAula = (statusPorAula && statusPorAula[String(aulaAtual.ordem).trim()]) || 'nao_enviada';
         statusAtividadeAtual = statusAula;
