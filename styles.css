@@ -268,6 +268,52 @@ video.drive-iframe { object-fit: contain; background: #000; }
     position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 0.6rem;
     color: var(--text-muted); font-size: 0.95rem; background: #000; border-radius: 20px; pointer-events: none;
 }
+
+/* --------------------------------------------------------------------------
+   CARROSSEL DE MÓDULOS (cursos do tipo "conteudo" — imagem + texto por slide)
+   -------------------------------------------------------------------------- */
+.carrossel-modulo {
+    width: 100%; height: 100%; display: flex; flex-direction: column; padding: 1.5rem;
+    background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 20px;
+    box-shadow: 0 15px 40px var(--shadow-color); overflow: hidden;
+}
+.carrossel-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.9rem; flex-shrink: 0; }
+.carrossel-titulo-modulo { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.1rem; }
+.carrossel-progresso { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; }
+.carrossel-audio { width: 100%; margin-bottom: 0.9rem; flex-shrink: 0; height: 38px; }
+
+.carrossel-stage { display: flex; align-items: center; gap: 0.8rem; flex: 1; min-height: 0; }
+.carrossel-seta {
+    flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid var(--border-color);
+    background: var(--bg-secondary); color: var(--text-main); font-size: 1.4rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.carrossel-seta:hover:not(:disabled) { background: var(--gradient-brand); color: #fff; border-color: transparent; transform: scale(1.08); }
+.carrossel-seta:disabled { opacity: 0.3; cursor: not-allowed; }
+.carrossel-imagem-wrap {
+    flex: 1; height: 100%; min-width: 0; display: flex; align-items: center; justify-content: center;
+    overflow: hidden; border-radius: 16px; background: #000;
+}
+.carrossel-imagem { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+.carrossel-texto { margin-top: 1rem; font-size: 1rem; line-height: 1.7; color: var(--text-main); min-height: 1.7em; flex-shrink: 0; }
+.carrossel-dots { display: flex; gap: 8px; justify-content: center; margin-top: 1rem; flex-shrink: 0; }
+.carrossel-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border-color); cursor: pointer; transition: all 0.25s; }
+.carrossel-dot:hover { background: var(--accent); }
+.carrossel-dot.ativo { background: var(--gradient-brand); width: 24px; border-radius: 6px; }
+
+.carrossel-btn-proximo { margin-top: 1rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+
+/* Anima a troca de imagem/texto a cada slide — um leve fade + subida, nada exagerado */
+.carrossel-fade-in { animation: carrossel-fade 0.4s ease; }
+@keyframes carrossel-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .carrossel-fade-in { animation: none; } }
+
+@media (max-width: 1024px) {
+    .carrossel-stage { flex-direction: row; }
+    .carrossel-seta { width: 36px; height: 36px; font-size: 1.2rem; }
+}
+
 .review-box { background: var(--card-bg); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border-color); height: 100%; }
 
 /* Atividade final (envio de arquivo) */
